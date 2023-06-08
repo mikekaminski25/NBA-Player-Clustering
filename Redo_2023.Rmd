@@ -1,0 +1,134 @@
+---
+title: "NBA Clustering Project - Tidymodels"
+author: "Mike Kaminski"
+date: "2023-06-08"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# Import Data
+Data was taken from the previous doc
+```{r}
+library(readr)
+NBACleanData <- read_csv("Data/NBACleanData.csv")
+colnames(NBACleanData)
+  
+```
+
+
+
+```{r}
+nba <- NBACleanData %>%
+  select(-c(1:10,"HOF","PF_pg","PF_pp","Heave_Att_sho","Heaves_Comp_sho","Dunks_PCT_FGA_sho","Dunks_sho")) #remove unwanted variables
+# colnames(nba)
+
+nba_2022 <- NBACleanData %>%
+  filter(Year == 2022) %>%
+  select(-c(1:10,"HOF","PF_pg","PF_pp","Heave_Att_sho","Heaves_Comp_sho","Dunks_PCT_FGA_sho","Dunks_sho")) #remove unwanted variables
+  
+
+```
+
+```{r}
+normalize <- function(x)
+{
+  return((x- min(x)) /(max(x)-min(x)))
+}
+nba_normal <- as.data.frame(lapply(nba, FUN=normalize))
+nba_normal_2022 <- as.data.frame(lapply(nba_2022, FUN=normalize))
+```
+
+
+
+```{r}
+library(tidymodels)
+
+set.seed(525)
+
+kclust <- kmeans(nba_normal, centers = 3)
+kclust
+
+kclust_2022 <- kmeans(nba_normal_2022, centers = 3)
+kclust_2022
+```
+
+```{r}
+library(broom)
+tidy(kclust)
+tidy(kclust_2022)
+```
+
+
+```{r}
+augment(kclust, nba_normal) %>%
+  ggplot(aes(PTS_pg, VORP_adv, color = .cluster)) +
+  geom_point()
+
+augment(kclust_2022, nba_normal_2022) %>%
+  ggplot(aes(PTS_pg, VORP_adv, color = .cluster)) +
+  geom_point()
+```
+
+
+```{r}
+augment(kclust, nba_normal)
+tidy(kclust)
+glance(kclust)
+
+
+augment(kclust_2022, nba_normal_2022)
+tidy(kclust_2022)
+glance(kclust_2022)
+```
+
+```{r}
+kclusts <- 
+  tibble(k = 1:15) %>%
+  mutate(
+    kclust = map(k, ~ kmeans(nba_normal, .x)),
+    tidied = map(kclust, tidy),
+    glanced = map(kclust, glance),
+    augmented = map(kclust, augment, nba_normal)
+  )
+
+kclusts
+
+kclusts_2022 <- 
+  tibble(k = 1:15) %>%
+  mutate(
+    kclust_2022 = map(k, ~ kmeans(nba_normal_2022, .x)),
+    tidied = map(kclust_2022, tidy),
+    glanced = map(kclust_2022, glance),
+    augmented = map(kclust_2022, augment, nba_normal_2022)
+  )
+
+kclusts
+```
+
+```{r}
+clusters <- 
+  kclusts %>%
+  unnest(cols = c(tidied))
+
+assignments <- 
+  kclusts %>% 
+  unnest(cols = c(augmented))
+
+clusterings <- 
+  kclusts %>%
+  unnest(cols = c(glanced))
+
+```
+
+```{r}
+p1 <- 
+  ggplot(assignments,aes(x=FG_pp, y = FGA_pp)) +
+  geom_point(aes(color = .cluster), alpha = 0.8) + 
+  facet_wrap(~ k)
+p1
+```
+
