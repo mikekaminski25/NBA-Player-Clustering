@@ -5,7 +5,7 @@ date: "2023-06-08"
 output: html_document
 ---
 
-```{r setup, include=FALSE, fig.width=14}
+```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, cache = TRUE, warning = FALSE,
                       message = FALSE, dpi = 180,
                       fig.width = 10, fig.height = 5)
@@ -97,13 +97,14 @@ juice(nba_prep) %>%
   labs(color = NULL)
 ```
 How much of the variation are we capturing
-```{r, fig.width = 14}
+```{r, fig.height= 6}
 sdev <- nba_prep$steps[[2]]$res$sdev
 
 percent_variation <- sdev^2 / sum(sdev^2)
 
 tibble(component = unique(tidied_pca$component),
        percent_var = percent_variation) %>%
+  filter(component %in% paste0("PC", 1:10)) %>%
   mutate(component = fct_inorder(component)) %>%
   ggplot(aes(component, percent_var)) +
   geom_col() +
@@ -112,11 +113,11 @@ tibble(component = unique(tidied_pca$component),
 ```
 
 ```{r}
-pca_lm <- juice(nba_prep) %>%
-  select(-Player) %>%
-  lm(FG_pp ~ ., data = .)
-options(scipen=9)
-summary(ranking_lm)
+# pca_lm <- juice(nba_prep) %>%
+#   select(-Player) %>%
+#   lm(FG_pp ~ ., data = .)
+# options(scipen=9)
+# summary(ranking_lm)
 
 ```
 
@@ -124,10 +125,20 @@ summary(ranking_lm)
 ```{r}
 library(embed)
 
-nba_rec <- recipe(~ ., data = nba_2022) %>%
+nba_rec_umap <- recipe(~ ., data = nba_2022) %>%
   update_role(Player, Pos, new_role = "id") %>%
   step_normalize(all_predictors()) %>%
   step_pca(all_predictors())
 
-nba_prep <- prep(nba_rec)
+nba_prep_umap <- prep(nba_rec_umap)
+nba_prep_umap
 ```
+
+```{r}
+juice(nba_prep_umap) %>%
+  ggplot(aes(PC1, PC2,label = Player)) +
+  geom_point(aes(color = Pos),alpha = 0.7, size =2 ) +
+  geom_text(check_overlap = TRUE, fmaily = "IBMPlexSans") +
+  labs(color = NULL)
+```
+

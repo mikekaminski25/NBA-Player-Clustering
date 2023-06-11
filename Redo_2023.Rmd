@@ -6,11 +6,140 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, cache = TRUE, warning = FALSE,
+                      message = FALSE, dpi = 180,
+                      fig.width = 10, fig.height = 5)
 ```
 
 
 # Import Data
+
+## Per 100 Possessions
+```{r}
+per_poss <- as.data.frame(read_csv("Data/per_poss.csv"))
+
+per_poss1 <- per_poss %>%
+  select('Year', everything(),-contains("Unnamed")) %>%
+  rename_all(~ str_replace_all(., " ", "_")) %>%
+  rename_all(~ str_replace_all(., "3", "Thr")) %>%
+  rename_all(~ str_replace_all(., "2", "Two")) 
+head(per_poss1)
+
+```
+
+## Advanced Stats
+```{r}
+adv <- as.data.frame(read_csv("Data/advanced.csv"))
+
+adv1 <- adv %>%
+  select('Year', everything(),-contains("Unnamed")) %>%
+  rename_all(~ str_replace_all(., "%", "_PCT")) %>%
+  rename_all(~ str_replace_all(., " ", "_")) %>%
+  rename_all(~ str_replace_all(., "3", "Thr")) %>%
+  rename_all(~ str_replace_all(., "2", "Two")) 
+head(adv1)
+
+```
+
+## Shooting Stats
+```{r}
+shoot <- as.data.frame(read_csv("Data/shooting.csv"))
+
+shoot1 <- shoot %>%
+  select('Year', everything(),-contains("Unnamed")) %>%
+  rename_all(~ str_replace_all(., " ", "_")) %>%
+  rename(Avg_Dist_FGA = Dist.) %>%
+  rename_all(~ str_replace_all(., "-", "_")) %>%
+  rename_all(~ str_replace_all(., "_of", "")) %>%
+  rename_all(~ str_replace_all(., "_by", "")) %>%
+  rename_all(~ str_replace_all(., "Distance", "Dis"))
+head(shoot1)
+```
+
+## Per Game
+```{r}
+per_game <- as.data.frame(read_csv("Data/per_game.csv"))
+
+per_game1 <- per_game %>%
+  select('Year', everything(),-contains("Unnamed")) %>%
+  rename_all(~ str_replace_all(., "%", "_PCT")) %>%
+  rename_all(~ str_replace_all(., "3", "Thr")) %>%
+  rename_all(~ str_replace_all(., "2", "Two")) 
+head(per_game1)
+```
+
+# Exploratory Data Analysis
+
+## More Cleaning
+There's a fair amount players that we need to remove from teh dataset given their lack of contribution to the team (Ex. playing only a few games or not playing a lot of minutes).
+
+The data includes a team name called 'TOT' which indicates that a player played or more than one team.  These players' stats appear on multiple lines - one for each team and one for the Total that season.  We need to remove the underlying teams for each player with 'TOT' as their team so we're left with only one row for each player for each season they played.  We'll create a unique index (since the index wasn't included on the scrape) based on rank (which is essentially an index value based on player name), player name and year.  We'll arrange by Games (TOT will always be the highest) and remove duplicate instances for each dataframe
+
+### Per 100 Possessions
+```{r}
+per_poss2 <- per_poss1 %>%
+  mutate(player_year = paste0(Rk,Player,Year)) %>% # creates an ID
+  mutate(player_year = str_replace_all(player_year," ","")) #removes spaces
+
+per_poss3 <- per_poss2 %>% 
+  arrange(Year, Player, desc(G))%>%
+  filter(duplicated(player_year) == FALSE)
+
+# compares the old df to the new df based on Team equaling 'TOT'. The TRUE valued should remain the same, the FALSE value should change because we're removing duplicates
+per_poss2 %>% count(Tm == 'TOT')
+per_poss3 %>% count(Tm == 'TOT')
+
+```
+
+### Advanced
+```{r}
+adv2 <- adv1 %>%
+  mutate(player_year = paste0(Rk,Player,Year)) %>% # creates an ID
+  mutate(player_year = str_replace_all(player_year," ","")) #removes spaces
+
+adv3 <- adv2 %>% 
+  arrange(Year, Player, desc(G))%>%
+  filter(duplicated(player_year) == FALSE)
+
+# compares the old df to the new df based on Team equaling 'TOT'. The TRUE valued should remain the same, the FALSE value should change because we're removing duplicates
+adv2 %>% count(Tm == 'TOT')
+adv3 %>% count(Tm == 'TOT')
+```
+
+### Shooting
+```{r}
+shoot2 <- shoot1 %>%
+  mutate(player_year = paste0(Rk,Player,Year)) %>% # creates an ID
+  mutate(player_year = str_replace_all(player_year," ","")) #removes spaces
+
+shoot3 <- shoot2 %>% 
+  arrange(Year, Player, desc(G))%>%
+  filter(duplicated(player_year) == FALSE)
+
+# compares the old df to the new df based on Team equaling 'TOT'. The TRUE valued should remain the same, the FALSE value should change because we're removing duplicates
+shoot2 %>% count(Tm == 'TOT')
+shoot3 %>% count(Tm == 'TOT')
+```
+
+### Per Game
+```{r}
+per_game2 <- per_game1 %>%
+  mutate(player_year = paste0(Rk,Player,Year)) %>% # creates an ID
+  mutate(player_year = str_replace_all(player_year," ","")) #removes spaces
+
+per_game3 <- per_game2 %>% 
+  arrange(Year, Player, desc(G))%>%
+  filter(duplicated(player_year) == FALSE)
+
+# compares the old df to the new df based on Team equaling 'TOT'. The TRUE valued should remain the same, the FALSE value should change because we're removing duplicates
+per_game2 %>% count(Tm == 'TOT')
+per_game3 %>% count(Tm == 'TOT')
+```
+
+
+
+
+
 Data was taken from the previous doc
 ```{r}
 library(readr)
