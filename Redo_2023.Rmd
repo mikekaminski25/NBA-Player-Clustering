@@ -78,7 +78,7 @@ per_game1 <- per_game %>%
 head(per_game1)
 ```
 
-# Exploratory Data Analysis
+# Cleaning the Data
 
 ## More Cleaning
 There's a fair amount players that we need to remove from teh dataset given their lack of contribution to the team (Ex. playing only a few games or not playing a lot of minutes).
@@ -337,56 +337,155 @@ a <- cutoff_df %>% distinct(Player)
 
 ```
 
+A unique player index was created in excel, imported, and joined to the df.  The previous column that was used to remove players with more than one line per season (Tm == 'Tot') wasn't useful for identifying unique players overall.
 
-
-
-
-Data was taken from the previous doc
+Only valuable columns for our model were selected, columns were reordered, and a few columns were renamed.
 ```{r}
-library(readr)
-NBACleanData <- read_csv("Data/NBACleanData.csv",show_col_types = FALSE)
+library(readxl)
+PlayerIndex <- read_excel("Data/PlayerIndex.xlsx")
+
+cutoff_df <- left_join(cutoff_df ,PlayerIndex %>% select(Player,index1),by="Player")
+
+# cutoff_df %>%
+#   select(Player, index1) %>%
+#   filter(is.na(index1))
+
+colnames(cutoff_df)
+cutoff_df <- cutoff_df %>%
+  select('Year','Player','index1', everything()) 
+```
+
+```{r}
+table(cutoff_df$Pos)
+# The values in the Pos (position) column sometimes included multiple positions (SG-SF, PF-C, etc.).  These values were amended to only include the first position in the string.
+cutoff_df <- cutoff_df %>%
+  mutate(Pos = substr(Pos,1,2)) %>%
+  mutate(Pos = str_remove_all(Pos,"-"))
+
+table(cutoff_df$Pos)
+
+```
+
+```{r}
+#Remove Other columns
+model_df <- cutoff_df %>%
+  select(-c(player_year,Age,G, GS)) %>%
+  select(-MP_pp) # this is total minutes instead of per 100 possessions
+
+
+a <- model_df %>% select(sort(names(.)))
+
+colnames(model_df)
+```
+
+
+```{r}
+#update variable names to add better groupings for the analysis - new = old
+model_df <- model_df %>%
+  rename(
+    "Reb_O_pp"="ORB_pp","Reb_D_pp"="DRB_pp", "Reb_T_pp"="TRB_pp",
+    
+    "Rtg_O_pp" = "ORtg_pp", "Rtg_D_pp" = "DRtg_pp",
+    
+    "FG_PCT_T" = "TS_PCT_adv",
+    "ThrP_Att_Rt_adv" = "ThrPAr_adv",
+    "FT_Rt_adv" ="FTr_adv",
+    
+    "Reb_O_pct_adv" = "ORB_PCT_adv","Reb_D_pct_adv" = "DRB_PCT_adv", "Reb_T_pct_adv" = "TRB_PCT_adv",
+    
+    "WS_O_adv" = "OWS_adv", "WS_D_adv" = "DWS_adv", "WS_T_adv" = "WS_adv", "WS_48_adv" = "WS_per_48_adv",
+    
+    "BPM_O_adv" = "OBPM_adv", "BPM_D_adv" = "DBPM_adv", "BPM_T_adv" = "BPM_adv",
+    
+    "FGA_Avg_Dis_sho" = "Avg_Dist_FGA_sho", "FGA%_2p_sho" = "PCT_FGA_Dis_2P_sho", "FGA%_0003_sho" = "PCT_FGA_Dis_0_3_sho", "FGA%_0310_sho" = "PCT_FGA_Dis_3_10_sho", "FGA%_1016_sho" = "PCT_FGA_Dis_10_16_sho", "FGA%_163p_sho" = "PCT_FGA_Dis_16_3P_sho",
+    
+    "FG%_0003_sho" = "FG_PCT_Dis_0_3_sho","FG%_0310_sho" = "FG_PCT_Dis_3_10_sho", "FG%_1016_sho" = "FG_PCT_Dis_10_16_sho", "FG%_163p_sho" = "FG_PCT_Dis_16_3P_sho",
+    
+    "ASTd_FG%_2p_sho" = "PCT_FG_Astd_2P_sho", "ASTd_FG%_3p_sho" = "PCT_FG_Astd_3P_sho",
+    "ThrPA%_Corn_sho" = "Corner_3s_PCT_3PA_sho", "ThrP%_Corn_sho" = "Corner_3s_PCT_3P_sho",
+    
+    "FG_PCT_e_pg" = "eFG_PCT_pg",
+    "Reb_O_pg" = "ORB_pg",
+    "Reb_D_pg" = "DRB_pg",
+    "Reb_T_pg" = "TRB_pg"
+  ) %>%
+  select(-c(Dunks_PCT_FGA_sho,Dunks_sho, Heave_Att_sho,Heaves_Comp,index1)) %>%
+  rename_with(~ str_replace(., "_PCT", "%"), contains("_PCT"))
+  # select(sort(colnames(.)))
+
+
+         
+```
+
+# Modeling
+
+There are 76 variables, so very high dimensional.  Start off with PCA to see if there's a way to reduce
+
+```{r}
+# library(readr)
+# NBACleanData <- read_csv("Data/NBACleanData.csv",show_col_types = FALSE)
   
 ```
 
-
 ```{r}
-nba <- NBACleanData %>%
-  select(-c(1:10,"HOF","PF_pg","PF_pp","Heave_Att_sho","Heaves_Comp_sho","Dunks_PCT_FGA_sho","Dunks_sho")) #remove unwanted variables
-# colnames(nba)
-
-nba_2022 <- NBACleanData %>%
-  filter(Year == 2022) %>%
-  select(-c(1:10,"HOF","PF_pg","PF_pp","Heave_Att_sho","Heaves_Comp_sho","Dunks_PCT_FGA_sho","Dunks_sho")) #remove unwanted variables
+# nba <- NBACleanData %>%
+#   select(-c(1:10,"HOF","PF_pg","PF_pp","Heave_Att_sho","Heaves_Comp_sho","Dunks_PCT_FGA_sho","Dunks_sho")) #remove unwanted variables
+# # colnames(nba)
+# 
+# nba_2022 <- NBACleanData %>%
+#   filter(Year == 2022) %>%
+#   select(-c(1:10,"HOF","PF_pg","PF_pp","Heave_Att_sho","Heaves_Comp_sho","Dunks_PCT_FGA_sho","Dunks_sho")) #remove unwanted variables
   
 
 ```
 
-
 ```{r}
-# trial for removing variables are seem to be duplicative
-nba <- NBACleanData %>%
-  select(-c(1:10,"HOF","PF_pg","PF_pp","Heave_Att_sho","Heaves_Comp_sho","Dunks_PCT_FGA_sho","Dunks_sho")) %>% #remove unwanted variables 
-  select(
-    -FG_pp, #field goals made per 100 possessions
-    -ThrP_pp, # three pointers made
-    -TwoP_pp, # two pointers made
-    -FT_pp, # free throws made
-    -contains("_pg"), # removes per game
-    -contains("FG_PCT"),
-    -Avg_Dist_FGA_sho,
-    -contains("Corner"),
-    -contains("PCT_FG_Ast"),
-    -TRB_pp
-  ) 
+# # trial for removing variables are seem to be duplicative
+# nba <- NBACleanData %>%
+#   select(-c(1:10,"HOF","PF_pg","PF_pp","Heave_Att_sho","Heaves_Comp_sho","Dunks_PCT_FGA_sho","Dunks_sho")) %>% #remove unwanted variables 
+#   select(
+#     -FG_pp, #field goals made per 100 possessions
+#     -ThrP_pp, # three pointers made
+#     -TwoP_pp, # two pointers made
+#     -FT_pp, # free throws made
+#     -contains("_pg"), # removes per game
+#     -contains("FG_PCT"),
+#     -Avg_Dist_FGA_sho,
+#     -contains("Corner"),
+#     -contains("PCT_FG_Ast"),
+#     -TRB_pp
+#   ) 
 
 ```
+
+```{r}
+library(tidyverse)
+library(corrr)
+
+model_df %>%
+  correlate() %>%
+  rearrange() %>%
+  shave() %>%
+  rplot(shape = 15)
+
+```
+
+```{r}
+ranking_lm <- model_df %>%
+  select(-Year, -Player, -Pos, -Tm) %>%
+  lm(VORP_adv ~ ., data = .)
+options(scipen=9)
+summary(ranking_lm)
+```
+
+
 
 ```{r}
 normalize <- function(x)
 {
   return((x- min(x)) /(max(x)-min(x)))
 }
-nba_normal <- as.data.frame(lapply(nba, FUN=normalize))
+nba_normal <- as.data.frame(lapply(model, FUN=normalize))
 # nba_normal_2022 <- as.data.frame(lapply(nba_2022, FUN=normalize))
 ```
 
