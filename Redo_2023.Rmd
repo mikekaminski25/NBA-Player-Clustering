@@ -14,11 +14,9 @@ knitr::opts_chunk$set(echo = TRUE)
 Data was taken from the previous doc
 ```{r}
 library(readr)
-NBACleanData <- read_csv("Data/NBACleanData.csv")
-colnames(NBACleanData)
+NBACleanData <- read_csv("Data/NBACleanData.csv",show_col_types = FALSE)
   
 ```
-
 
 
 ```{r}
@@ -33,13 +31,33 @@ nba_2022 <- NBACleanData %>%
 
 ```
 
+
+```{r}
+# trial for removing variables are seem to be duplicative
+nba <- NBACleanData %>%
+  select(-c(1:10,"HOF","PF_pg","PF_pp","Heave_Att_sho","Heaves_Comp_sho","Dunks_PCT_FGA_sho","Dunks_sho")) %>% #remove unwanted variables 
+  select(
+    -FG_pp, #field goals made per 100 possessions
+    -ThrP_pp, # three pointers made
+    -TwoP_pp, # two pointers made
+    -FT_pp, # free throws made
+    -contains("_pg"), # removes per game
+    -contains("FG_PCT"),
+    -Avg_Dist_FGA_sho,
+    -contains("Corner"),
+    -contains("PCT_FG_Ast"),
+    -TRB_pp
+  ) 
+
+```
+
 ```{r}
 normalize <- function(x)
 {
   return((x- min(x)) /(max(x)-min(x)))
 }
 nba_normal <- as.data.frame(lapply(nba, FUN=normalize))
-nba_normal_2022 <- as.data.frame(lapply(nba_2022, FUN=normalize))
+# nba_normal_2022 <- as.data.frame(lapply(nba_2022, FUN=normalize))
 ```
 
 
@@ -49,28 +67,27 @@ library(tidymodels)
 
 set.seed(525)
 
-kclust <- kmeans(nba_normal, centers = 3)
-kclust
+kclust <- kmeans(nba_normal, centers = 4)
 
-kclust_2022 <- kmeans(nba_normal_2022, centers = 3)
-kclust_2022
+# kclust_2022 <- kmeans(nba_normal_2022, centers = 7)
+
 ```
 
 ```{r}
 library(broom)
 tidy(kclust)
-tidy(kclust_2022)
+# tidy(kclust_2022)
 ```
 
 
 ```{r}
 augment(kclust, nba_normal) %>%
-  ggplot(aes(PTS_pg, VORP_adv, color = .cluster)) +
+  ggplot(aes(FGA_pp, TwoPA_pp, color = .cluster)) +
   geom_point()
 
-augment(kclust_2022, nba_normal_2022) %>%
-  ggplot(aes(PTS_pg, VORP_adv, color = .cluster)) +
-  geom_point()
+# augment(kclust_2022, nba_normal_2022) %>%
+#   ggplot(aes(PTS_pg, VORP_adv, color = .cluster)) +
+#   geom_point()
 ```
 
 
@@ -80,9 +97,9 @@ tidy(kclust)
 glance(kclust)
 
 
-augment(kclust_2022, nba_normal_2022)
-tidy(kclust_2022)
-glance(kclust_2022)
+# augment(kclust_2022, nba_normal_2022)
+# tidy(kclust_2022)
+# glance(kclust_2022)
 ```
 
 ```{r}
@@ -97,17 +114,53 @@ kclusts <-
 
 kclusts
 
-kclusts_2022 <- 
-  tibble(k = 1:15) %>%
-  mutate(
-    kclust_2022 = map(k, ~ kmeans(nba_normal_2022, .x)),
-    tidied = map(kclust_2022, tidy),
-    glanced = map(kclust_2022, glance),
-    augmented = map(kclust_2022, augment, nba_normal_2022)
-  )
-
-kclusts
+# kclusts_2022 <- 
+#   tibble(k = 1:15) %>%
+#   mutate(
+#     kclust_2022 = map(k, ~ kmeans(nba_normal_2022, .x)),
+#     tidied = map(kclust_2022, tidy),
+#     glanced = map(kclust_2022, glance),
+#     augmented = map(kclust_2022, augment, nba_normal_2022)
+#   )
+# 
+# kclusts_2022
 ```
+
+
+```{r}
+kclusts %>%
+  unnest(glanced) %>%
+  ggplot(aes(k, tot.withinss)) +
+  geom_line(alpha = 0.8) +
+  geom_point(size = 2)
+
+kclusts %>%
+  unnest(glanced) %>%
+  ggplot(aes(k, tot.withinss-lead(tot.withinss))) +
+  geom_line(alpha = 0.8) +
+  geom_point(size = 2)
+
+kclusts %>%
+  unnest(glanced) %>%
+  ggplot(aes(k, tot.withinss-lead(tot.withinss,n=2))) +
+  geom_line(alpha = 0.8) +
+  geom_point(size = 2)
+
+
+kclusts %>%
+  unnest(glanced) %>%
+  ggplot(aes(k, tot.withinss)) +
+  geom_line(alpha = 0.8) +
+  geom_point(size = 2) +
+
+  geom_line(aes(k, tot.withinss-lead(tot.withinss)), alpha = 0.8 ) +
+  geom_point(aes(k, tot.withinss-lead(tot.withinss)),size = 2,color = "red") +
+
+  geom_line(aes(k, tot.withinss-lead(tot.withinss,n=2)), alpha = 0.8) +
+  geom_point(aes(k, tot.withinss-lead(tot.withinss,n=2)),size = 2, color = "blue")
+```
+
+
 
 ```{r}
 clusters <- 
@@ -122,6 +175,19 @@ clusterings <-
   kclusts %>%
   unnest(cols = c(glanced))
 
+clusters_2022 <- 
+  kclusts_2022 %>%
+  unnest(cols = c(tidied))
+
+assignments_2022 <- 
+  kclusts_2022 %>% 
+  unnest(cols = c(augmented))
+
+clusterings_2022 <- 
+  kclusts_2022 %>%
+  unnest(cols = c(glanced))
+
+
 ```
 
 ```{r}
@@ -130,5 +196,17 @@ p1 <-
   geom_point(aes(color = .cluster), alpha = 0.8) + 
   facet_wrap(~ k)
 p1
+```
+
+# hierarchical
+```{r}
+library(workflows)
+library(parsnip)
+library(tidyclust)
+library(tidyverse)
+```
+
+```{r}
+
 ```
 

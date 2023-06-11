@@ -1,0 +1,133 @@
+---
+title: "NBA Clustering PCA 2022 data"
+author: "Mike Kaminski"
+date: "2023-06-08"
+output: html_document
+---
+
+```{r setup, include=FALSE, fig.width=14}
+knitr::opts_chunk$set(echo = TRUE, cache = TRUE, warning = FALSE,
+                      message = FALSE, dpi = 180,
+                      fig.width = 10, fig.height = 5)
+
+```
+
+# Import Data
+Data was taken from the previous doc
+```{r}
+library(readr)
+NBACleanData <- read_csv("Data/NBACleanData.csv",show_col_types = FALSE)
+  
+```
+
+```{r}
+library(tidyverse)
+nba_2022 <- NBACleanData %>%
+  filter(Year == 2022) %>%
+  select(-c(1:2,4,6:10,"HOF","PF_pg","PF_pp","Heave_Att_sho","Heaves_Comp_sho","Dunks_PCT_FGA_sho","Dunks_sho")) #remove unwanted variables
+```
+
+```{r,fig.width=10}
+library(corrr)
+
+nba_2022 %>%
+  correlate() %>%
+  rearrange() %>%
+  shave() %>%
+  rplot(shape = 15)
+
+```
+
+```{r}
+ranking_lm <- nba_2022 %>%
+  select(-Player, -Pos) %>%
+  lm(VORP_adv ~ ., data = .)
+options(scipen=9)
+summary(ranking_lm)
+
+```
+
+# PCA
+
+```{r}
+library(tidymodels)
+
+nba_rec <- recipe(~ ., data = nba_2022) %>%
+  update_role(Player, Pos, new_role = "id") %>%
+  step_normalize(all_predictors()) %>%
+  step_pca(all_predictors())
+
+nba_prep <- prep(nba_rec)
+```
+
+```{r, fig.width = 14, fig.height= 10}
+tidied_pca <- tidy(nba_prep,2)
+
+tidied_pca %>%
+  filter(component %in% c('PC1','PC2','PC3','PC4','PC5')) %>%
+  mutate(component = fct_inorder(component)) %>%
+  ggplot(aes(value, terms, fill = terms)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~component, nrow = 1)
+
+
+```
+
+```{r, fig.width=14}
+library(tidytext)
+tidied_pca %>%
+  filter(component %in% paste0("PC", 1:4)) %>%
+  group_by(component) %>%
+  top_n(15, abs(value)) %>%
+  ungroup() %>%
+  mutate(terms = reorder_within(terms, abs(value), component)) %>%
+  ggplot(aes(abs(value), terms, fill = value >0)) +
+  geom_col() +
+  facet_wrap(~component, scales = "free_y") +
+  scale_y_reordered() +
+  labs(x = "Abs value of contribution", y= NULL, fill = "Positive?")
+
+```
+
+```{r, fig.width = 12, fig.height = 6}
+juice(nba_prep) %>%
+  ggplot(aes(PC1, PC2,label = Player)) +
+  geom_point(aes(color = Pos),alpha = 0.7, size =2 ) +
+  geom_text(check_overlap = TRUE, fmaily = "IBMPlexSans") +
+  labs(color = NULL)
+```
+How much of the variation are we capturing
+```{r, fig.width = 14}
+sdev <- nba_prep$steps[[2]]$res$sdev
+
+percent_variation <- sdev^2 / sum(sdev^2)
+
+tibble(component = unique(tidied_pca$component),
+       percent_var = percent_variation) %>%
+  mutate(component = fct_inorder(component)) %>%
+  ggplot(aes(component, percent_var)) +
+  geom_col() +
+  scale_y_continuous(labels = scales::percent_format())
+
+```
+
+```{r}
+pca_lm <- juice(nba_prep) %>%
+  select(-Player) %>%
+  lm(FG_pp ~ ., data = .)
+options(scipen=9)
+summary(ranking_lm)
+
+```
+
+
+```{r}
+library(embed)
+
+nba_rec <- recipe(~ ., data = nba_2022) %>%
+  update_role(Player, Pos, new_role = "id") %>%
+  step_normalize(all_predictors()) %>%
+  step_pca(all_predictors())
+
+nba_prep <- prep(nba_rec)
+```
