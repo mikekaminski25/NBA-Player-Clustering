@@ -11,6 +11,16 @@ knitr::opts_chunk$set(echo = TRUE, cache = TRUE, warning = FALSE,
                       fig.width = 10, fig.height = 5)
 ```
 
+```{r}
+library(readr)
+library(dplyr) 
+library(stringr)
+library(ggplot2)
+library(knitr)
+library(tidyr)
+library(stringi)
+```
+
 
 # Import Data
 
@@ -134,6 +144,197 @@ per_game3 <- per_game2 %>%
 # compares the old df to the new df based on Team equaling 'TOT'. The TRUE valued should remain the same, the FALSE value should change because we're removing duplicates
 per_game2 %>% count(Tm == 'TOT')
 per_game3 %>% count(Tm == 'TOT')
+```
+
+There are duplicate column names in each df, so need to change names to include a unique identifier
+```{r}
+adv4 <- adv3 %>%
+  rename_at(vars(8:28), ~paste0(.,"_adv"))
+
+per_game4 <- per_game3 %>%
+  rename_at(vars(9:31), ~paste0(.,"_pg"))
+
+per_poss4 <- per_poss3 %>%
+  rename_at(vars(9:32), ~paste0(.,"_pp"))
+
+shoot4 <- shoot3 %>%
+  rename_at(vars(8:29), ~paste0(.,"_sho"))
+
+```
+
+There still could be some duplicate stat columns within each of the dataframes, so a preliminary df will be created and analyzed manually to identify these instances
+```{r}
+dupcol_df <- per_poss4 %>%
+  select(1:33) %>%
+  left_join(select(adv4, c(7:29)), by = 'player_year') %>% 
+  left_join(select(shoot4, c(7:31)), by = 'player_year') %>% 
+  left_join(select(per_game4, c(7:32)), by = 'player_year')
+dupcol_df <- dupcol_df %>% select(order(colnames(dupcol_df)))
+```
+
+#### Obvious Duplicated Columns
+Columns will be removed based on a hierarchy of the dataframes: 1) Per 100, 2) Advanced, 3) Shooting, 4) Per Game
+
+* FG_PCT: Per 100, Shooting, and Per Game
+* FT_PCT: Per 100, Per Game
+* G: Per 100, Advanced, Shooting, Per Game 
+* GS: Per 100, Per Game
+* MP: Per 100, Advanced, Shooting
+* ThrP_PCT: Per 100, Per Game
+* TwoP_PCT: Per 100, Per Game
+
+```{r}
+dupcol_df1 <- per_poss4 %>%
+  select(1,3:33) %>% #remove rank as it's meaningless
+  left_join(select(adv4, c(9:29)), by = 'player_year') %>% #remove G and MP
+  left_join(select(shoot4, c(10:31)), by = 'player_year') %>% #remove G MP FG_PCT
+  left_join(select(per_game4, -c(1:8,12,15,22)), by = 'player_year') #remove FG_PCT, FT_PCT, G, GS, ThrP_PCT, TwoP_PCT
+```
+
+
+#### Not so Obvious Duplicated Columns
+These columns are named differently, but they account for the same statistics when their values are for each player are reviewed
+
+* ThrPAr_adv and PCT_FGA_Dis_3P_sho 
+* ThrP_PCT_pp and FG_PCT_Dis_3P_sho
+* TwoP_PCT_pp, FG_PCT_Dis_2P_sho,and TwoP_PCT_pg
+* STL_pp and STL_PCT_adv
+
+These duplicated columns will be removed leaving us another step closer to our final dataset
+```{r}
+final_df2 <- dupcol_df1 %>%
+  select(-c('PCT_FGA_Dis_3P_sho','FG_PCT_Dis_3P_sho','FG_PCT_Dis_2P_sho','TwoP_PCT_pg','STL_PCT_adv')) %>%
+  select(player_year, everything())
+```
+
+It's likely that players who didn't play a ton of games will impact the analysis, so it would be beneficial to remove these players.
+
+```{r}
+final_df2 %>%
+  ggplot(aes(Year, G)) +
+  geom_point()
+```
+
+I'll start by looking at the number of games played each year.  Some season were shortened due to the lockout or to covid, so picking an arbitrary number might not be the best idea.
+```{r}
+q <- c(0.25,0.5,0.75)
+qs_games_per_year <- final_df2 %>%
+  group_by(Year) %>%
+  summarize(min = min(G),
+            quant25 = quantile(G, probs = q[1]),
+            quant50 = quantile(G, probs = q[2]),
+            quant75 = quantile(G, probs = q[3]),
+            max = max(G)) %>%
+  print(n=40)
+# kable(qs_games_per_year)
+
+```
+
+Players could have played more than 82 games in a year due to trades mid-season.
+
+```{r}
+#creates a new df
+final_df_with_qs_g <- left_join(final_df2, qs_games_per_year[1:4], by ="Year")
+```
+
+```{r}
+ggplot(final_df_with_qs_g, aes(x=G, y=as.factor(Year))) + 
+  geom_boxplot(color="#63727A", fill="#5A2D81", alpha=0.3) +
+  labs(title="Box Plot of Games per Season",x="Games", y = "Season")+
+  theme(plot.title=element_text(hjust=0.5),
+        plot.subtitle=element_text(hjust=0.5)) +
+  scale_x_continuous(limits = c(0,86), expand = c(0,0), breaks=seq(0, 85, 5)) 
+```
+
+### Create a cutoff
+Removing players at the 25% percentile or 50% percentile would likely make the most sense.
+```{r}
+final_df_with_qs_g %>%
+  filter(G >= quant25) %>%
+  summarize(count = n())
+# 7939
+
+final_df_with_qs_g %>%
+  filter(G >= quant50) %>%
+  summarize(count = n())
+# 5362  
+
+# It's likely the NA values are because a player didn't have any stats for that, so I will replace all NAs with 0
+final_df_with_qs_g %>%
+  filter(G >= quant25) %>%
+  summarise(sum(is.na(.)))
+
+final_df_with_qs_g %>%
+  filter(G >= quant50) %>%
+  summarise(sum(is.na(.)))
+  
+final_df_with_qs_g <- final_df_with_qs_g %>%
+  mutate_all(~ replace_na(., 0))
+
+```
+
+Given the data and the obejctive, it's likely better to use a minutes cutoff rather than a games played cutoff.  This will better account for good players that got injured that played fewer games. 12 minutes will be the cutoff and can always be changed to inlcude a 20 mpg cutoff.
+
+
+I'll look at minutes as well.
+```{r}
+q <- c(0.25,0.5,0.75)
+qs_mins_per_year <- final_df2 %>%
+  group_by(Year) %>%
+  summarize(min = min(MP_pg),
+            quant25 = quantile(MP_pg, probs = q[1]),
+            quant50 = quantile(MP_pg, probs = q[2]),
+            quant75 = quantile(MP_pg, probs = q[3]),
+            max = max(MP_pg)) %>%
+  print(n=40)
+```
+
+```{r}
+# Above 12 mins per game or above 20 mins per game might be an appropriate cutoff.  12 mins is one quarter
+mean(qs_mins_per_year$quant25) #12.2
+mean(qs_mins_per_year$quant50) #19.7
+```
+
+```{r}
+#creates a new df
+final_df_with_qs_mpg <- left_join(final_df2, qs_mins_per_year[1:4], by ="Year")
+```
+
+```{r}
+final_df_with_qs_mpg %>%
+  filter(MP_pg >= 12) %>%
+ summarize(count = n())
+# 7989
+
+final_df_with_qs_mpg %>%
+  filter(MP_pg >= 20) %>%
+  summarize(count = n())
+# 5171 
+
+# It's likely the NA values are because a player didn't have any stats for that, so I will replace all NAs with 0
+final_df_with_qs_mpg %>%
+  filter(MP_pg >= 12) %>%
+  summarise(sum(is.na(.)))
+
+final_df_with_qs_mpg %>%
+  filter(MP_pg >= 20) %>%
+  summarise(sum(is.na(.)))
+  
+final_df_with_qs_mpg <- final_df_with_qs_mpg %>%
+  mutate_all(~ replace_na(., 0))
+```
+
+```{r}
+cutoff_df <- final_df_with_qs_mpg %>%
+  select(-min,-quant25,-quant50) %>% #removes unneeded variables
+  filter(MP_pg >= 12) %>%
+  mutate(HOF = ifelse(grepl("\\*", Player),1,0)) %>% #creates a new variable called Hall of Fame
+  mutate(Player = stri_trans_general(Player, "Latin-ASCII")) %>%
+  mutate(Player = gsub("[.'*]", "", Player)) %>%
+  mutate(Player = gsub("\\-", " ", Player)) 
+
+a <- cutoff_df %>% distinct(Player)
+
 ```
 
 
