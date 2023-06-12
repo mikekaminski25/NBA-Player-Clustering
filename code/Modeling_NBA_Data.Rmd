@@ -1,0 +1,762 @@
+---
+title: "NBA Clustering Project - Tidymodels"
+author: "Mike Kaminski"
+date: "2023-06-08"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, cache = TRUE, warning = FALSE,
+                      message = FALSE, dpi = 180,
+                      fig.width = 10, fig.height = 5)
+```
+
+```{r}
+library(readr)
+library(dplyr) 
+library(stringr)
+library(ggplot2)
+library(knitr)
+library(tidyr)
+library(stringi)
+```
+
+
+# Import Data
+
+## Per 100 Possessions
+```{r}
+per_poss <- as.data.frame(read_csv("Data/per_poss.csv"))
+
+per_poss1 <- per_poss %>%
+  select('Year', everything(),-contains("Unnamed")) %>%
+  rename_all(~ str_replace_all(., " ", "_")) %>%
+  rename_all(~ str_replace_all(., "3", "Thr")) %>%
+  rename_all(~ str_replace_all(., "2", "Two")) 
+head(per_poss1)
+
+```
+
+## Advanced Stats
+```{r}
+adv <- as.data.frame(read_csv("Data/advanced.csv"))
+
+adv1 <- adv %>%
+  select('Year', everything(),-contains("Unnamed")) %>%
+  rename_all(~ str_replace_all(., "%", "_PCT")) %>%
+  rename_all(~ str_replace_all(., " ", "_")) %>%
+  rename_all(~ str_replace_all(., "3", "Thr")) %>%
+  rename_all(~ str_replace_all(., "2", "Two")) 
+head(adv1)
+
+```
+
+## Shooting Stats
+```{r}
+shoot <- as.data.frame(read_csv("Data/shooting.csv"))
+
+shoot1 <- shoot %>%
+  select('Year', everything(),-contains("Unnamed")) %>%
+  rename_all(~ str_replace_all(., " ", "_")) %>%
+  rename(Avg_Dist_FGA = Dist.) %>%
+  rename_all(~ str_replace_all(., "-", "_")) %>%
+  rename_all(~ str_replace_all(., "_of", "")) %>%
+  rename_all(~ str_replace_all(., "_by", "")) %>%
+  rename_all(~ str_replace_all(., "Distance", "Dis"))
+head(shoot1)
+```
+
+## Per Game
+```{r}
+per_game <- as.data.frame(read_csv("Data/per_game.csv"))
+
+per_game1 <- per_game %>%
+  select('Year', everything(),-contains("Unnamed")) %>%
+  rename_all(~ str_replace_all(., "%", "_PCT")) %>%
+  rename_all(~ str_replace_all(., "3", "Thr")) %>%
+  rename_all(~ str_replace_all(., "2", "Two")) 
+head(per_game1)
+```
+
+# Cleaning the Data
+
+## More Cleaning
+There's a fair amount players that we need to remove from teh dataset given their lack of contribution to the team (Ex. playing only a few games or not playing a lot of minutes).
+
+The data includes a team name called 'TOT' which indicates that a player played or more than one team.  These players' stats appear on multiple lines - one for each team and one for the Total that season.  We need to remove the underlying teams for each player with 'TOT' as their team so we're left with only one row for each player for each season they played.  We'll create a unique index (since the index wasn't included on the scrape) based on rank (which is essentially an index value based on player name), player name and year.  We'll arrange by Games (TOT will always be the highest) and remove duplicate instances for each dataframe
+
+### Per 100 Possessions
+```{r}
+per_poss2 <- per_poss1 %>%
+  mutate(player_year = paste0(Rk,Player,Year)) %>% # creates an ID
+  mutate(player_year = str_replace_all(player_year," ","")) #removes spaces
+
+per_poss3 <- per_poss2 %>% 
+  arrange(Year, Player, desc(G))%>%
+  filter(duplicated(player_year) == FALSE)
+
+# compares the old df to the new df based on Team equaling 'TOT'. The TRUE valued should remain the same, the FALSE value should change because we're removing duplicates
+per_poss2 %>% count(Tm == 'TOT')
+per_poss3 %>% count(Tm == 'TOT')
+
+```
+
+### Advanced
+```{r}
+adv2 <- adv1 %>%
+  mutate(player_year = paste0(Rk,Player,Year)) %>% # creates an ID
+  mutate(player_year = str_replace_all(player_year," ","")) #removes spaces
+
+adv3 <- adv2 %>% 
+  arrange(Year, Player, desc(G))%>%
+  filter(duplicated(player_year) == FALSE)
+
+# compares the old df to the new df based on Team equaling 'TOT'. The TRUE valued should remain the same, the FALSE value should change because we're removing duplicates
+adv2 %>% count(Tm == 'TOT')
+adv3 %>% count(Tm == 'TOT')
+```
+
+### Shooting
+```{r}
+shoot2 <- shoot1 %>%
+  mutate(player_year = paste0(Rk,Player,Year)) %>% # creates an ID
+  mutate(player_year = str_replace_all(player_year," ","")) #removes spaces
+
+shoot3 <- shoot2 %>% 
+  arrange(Year, Player, desc(G))%>%
+  filter(duplicated(player_year) == FALSE)
+
+# compares the old df to the new df based on Team equaling 'TOT'. The TRUE valued should remain the same, the FALSE value should change because we're removing duplicates
+shoot2 %>% count(Tm == 'TOT')
+shoot3 %>% count(Tm == 'TOT')
+```
+
+### Per Game
+```{r}
+per_game2 <- per_game1 %>%
+  mutate(player_year = paste0(Rk,Player,Year)) %>% # creates an ID
+  mutate(player_year = str_replace_all(player_year," ","")) #removes spaces
+
+per_game3 <- per_game2 %>% 
+  arrange(Year, Player, desc(G))%>%
+  filter(duplicated(player_year) == FALSE)
+
+# compares the old df to the new df based on Team equaling 'TOT'. The TRUE valued should remain the same, the FALSE value should change because we're removing duplicates
+per_game2 %>% count(Tm == 'TOT')
+per_game3 %>% count(Tm == 'TOT')
+```
+
+There are duplicate column names in each df, so need to change names to include a unique identifier
+```{r}
+adv4 <- adv3 %>%
+  rename_at(vars(8:28), ~paste0(.,"_adv"))
+
+per_game4 <- per_game3 %>%
+  rename_at(vars(9:31), ~paste0(.,"_pg"))
+
+per_poss4 <- per_poss3 %>%
+  rename_at(vars(9:32), ~paste0(.,"_pp"))
+
+shoot4 <- shoot3 %>%
+  rename_at(vars(8:29), ~paste0(.,"_sho"))
+
+```
+
+There still could be some duplicate stat columns within each of the dataframes, so a preliminary df will be created and analyzed manually to identify these instances
+```{r}
+dupcol_df <- per_poss4 %>%
+  select(1:33) %>%
+  left_join(select(adv4, c(7:29)), by = 'player_year') %>% 
+  left_join(select(shoot4, c(7:31)), by = 'player_year') %>% 
+  left_join(select(per_game4, c(7:32)), by = 'player_year')
+dupcol_df <- dupcol_df %>% select(order(colnames(dupcol_df)))
+```
+
+#### Obvious Duplicated Columns
+Columns will be removed based on a hierarchy of the dataframes: 1) Per 100, 2) Advanced, 3) Shooting, 4) Per Game
+
+* FG_PCT: Per 100, Shooting, and Per Game
+* FT_PCT: Per 100, Per Game
+* G: Per 100, Advanced, Shooting, Per Game 
+* GS: Per 100, Per Game
+* MP: Per 100, Advanced, Shooting
+* ThrP_PCT: Per 100, Per Game
+* TwoP_PCT: Per 100, Per Game
+
+```{r}
+dupcol_df1 <- per_poss4 %>%
+  select(1,3:33) %>% #remove rank as it's meaningless
+  left_join(select(adv4, c(9:29)), by = 'player_year') %>% #remove G and MP
+  left_join(select(shoot4, c(10:31)), by = 'player_year') %>% #remove G MP FG_PCT
+  left_join(select(per_game4, -c(1:8,12,15,22)), by = 'player_year') #remove FG_PCT, FT_PCT, G, GS, ThrP_PCT, TwoP_PCT
+```
+
+
+#### Not so Obvious Duplicated Columns
+These columns are named differently, but they account for the same statistics when their values are for each player are reviewed
+
+* ThrPAr_adv and PCT_FGA_Dis_3P_sho 
+* ThrP_PCT_pp and FG_PCT_Dis_3P_sho
+* TwoP_PCT_pp, FG_PCT_Dis_2P_sho,and TwoP_PCT_pg
+* STL_pp and STL_PCT_adv
+
+These duplicated columns will be removed leaving us another step closer to our final dataset
+```{r}
+final_df2 <- dupcol_df1 %>%
+  select(-c('PCT_FGA_Dis_3P_sho','FG_PCT_Dis_3P_sho','FG_PCT_Dis_2P_sho','TwoP_PCT_pg','STL_PCT_adv')) %>%
+  select(player_year, everything())
+```
+
+It's likely that players who didn't play a ton of games will impact the analysis, so it would be beneficial to remove these players.
+
+```{r}
+final_df2 %>%
+  ggplot(aes(Year, G)) +
+  geom_point()
+```
+
+I'll start by looking at the number of games played each year.  Some season were shortened due to the lockout or to covid, so picking an arbitrary number might not be the best idea.
+```{r}
+q <- c(0.25,0.5,0.75)
+qs_games_per_year <- final_df2 %>%
+  group_by(Year) %>%
+  summarize(min = min(G),
+            quant25 = quantile(G, probs = q[1]),
+            quant50 = quantile(G, probs = q[2]),
+            quant75 = quantile(G, probs = q[3]),
+            max = max(G)) %>%
+  print(n=40)
+# kable(qs_games_per_year)
+
+```
+
+Players could have played more than 82 games in a year due to trades mid-season.
+
+```{r}
+#creates a new df
+final_df_with_qs_g <- left_join(final_df2, qs_games_per_year[1:4], by ="Year")
+```
+
+```{r}
+ggplot(final_df_with_qs_g, aes(x=G, y=as.factor(Year))) + 
+  geom_boxplot(color="#63727A", fill="#5A2D81", alpha=0.3) +
+  labs(title="Box Plot of Games per Season",x="Games", y = "Season")+
+  theme(plot.title=element_text(hjust=0.5),
+        plot.subtitle=element_text(hjust=0.5)) +
+  scale_x_continuous(limits = c(0,86), expand = c(0,0), breaks=seq(0, 85, 5)) 
+```
+
+### Create a cutoff
+Removing players at the 25% percentile or 50% percentile would likely make the most sense.
+```{r}
+final_df_with_qs_g %>%
+  filter(G >= quant25) %>%
+  summarize(count = n())
+# 7939
+
+final_df_with_qs_g %>%
+  filter(G >= quant50) %>%
+  summarize(count = n())
+# 5362  
+
+# It's likely the NA values are because a player didn't have any stats for that, so I will replace all NAs with 0
+final_df_with_qs_g %>%
+  filter(G >= quant25) %>%
+  summarise(sum(is.na(.)))
+
+final_df_with_qs_g %>%
+  filter(G >= quant50) %>%
+  summarise(sum(is.na(.)))
+  
+final_df_with_qs_g <- final_df_with_qs_g %>%
+  mutate_all(~ replace_na(., 0))
+
+```
+
+Given the data and the obejctive, it's likely better to use a minutes cutoff rather than a games played cutoff.  This will better account for good players that got injured that played fewer games. 12 minutes will be the cutoff and can always be changed to inlcude a 20 mpg cutoff.
+
+
+I'll look at minutes as well.
+```{r}
+q <- c(0.25,0.5,0.75)
+qs_mins_per_year <- final_df2 %>%
+  group_by(Year) %>%
+  summarize(min = min(MP_pg),
+            quant25 = quantile(MP_pg, probs = q[1]),
+            quant50 = quantile(MP_pg, probs = q[2]),
+            quant75 = quantile(MP_pg, probs = q[3]),
+            max = max(MP_pg)) %>%
+  print(n=40)
+```
+
+```{r}
+# Above 12 mins per game or above 20 mins per game might be an appropriate cutoff.  12 mins is one quarter
+mean(qs_mins_per_year$quant25) #12.2
+mean(qs_mins_per_year$quant50) #19.7
+```
+
+```{r}
+#creates a new df
+final_df_with_qs_mpg <- left_join(final_df2, qs_mins_per_year[1:4], by ="Year")
+```
+
+```{r}
+final_df_with_qs_mpg %>%
+  filter(MP_pg >= 12) %>%
+ summarize(count = n())
+# 7989
+
+final_df_with_qs_mpg %>%
+  filter(MP_pg >= 20) %>%
+  summarize(count = n())
+# 5171 
+
+# It's likely the NA values are because a player didn't have any stats for that, so I will replace all NAs with 0
+final_df_with_qs_mpg %>%
+  filter(MP_pg >= 12) %>%
+  summarise(sum(is.na(.)))
+
+final_df_with_qs_mpg %>%
+  filter(MP_pg >= 20) %>%
+  summarise(sum(is.na(.)))
+  
+final_df_with_qs_mpg <- final_df_with_qs_mpg %>%
+  mutate_all(~ replace_na(., 0))
+```
+
+```{r}
+cutoff_df <- final_df_with_qs_mpg %>%
+  select(-min,-quant25,-quant50) %>% #removes unneeded variables
+  filter(MP_pg >= 12) %>%
+  mutate(HOF = ifelse(grepl("\\*", Player),1,0)) %>% #creates a new variable called Hall of Fame
+  mutate(Player = stri_trans_general(Player, "Latin-ASCII")) %>%
+  mutate(Player = gsub("[.'*]", "", Player)) %>%
+  mutate(Player = gsub("\\-", " ", Player)) 
+
+a <- cutoff_df %>% distinct(Player)
+
+```
+
+A unique player index was created in excel, imported, and joined to the df.  The previous column that was used to remove players with more than one line per season (Tm == 'Tot') wasn't useful for identifying unique players overall.
+
+Only valuable columns for our model were selected, columns were reordered, and a few columns were renamed.
+```{r}
+library(readxl)
+PlayerIndex <- read_excel("Data/PlayerIndex.xlsx")
+
+cutoff_df <- left_join(cutoff_df ,PlayerIndex %>% select(Player,index1),by="Player")
+
+# cutoff_df %>%
+#   select(Player, index1) %>%
+#   filter(is.na(index1))
+
+colnames(cutoff_df)
+cutoff_df <- cutoff_df %>%
+  select('Year','Player','index1', everything()) 
+```
+
+```{r}
+table(cutoff_df$Pos)
+# The values in the Pos (position) column sometimes included multiple positions (SG-SF, PF-C, etc.).  These values were amended to only include the first position in the string.
+cutoff_df <- cutoff_df %>%
+  mutate(Pos = substr(Pos,1,2)) %>%
+  mutate(Pos = str_remove_all(Pos,"-"))
+
+table(cutoff_df$Pos)
+
+```
+
+```{r}
+#Remove Other columns
+model_df <- cutoff_df %>%
+  select(-c(player_year,Age,G, GS)) %>%
+  select(-MP_pp) # this is total minutes instead of per 100 possessions
+
+
+a <- model_df %>% select(sort(names(.)))
+
+colnames(model_df)
+```
+
+
+```{r}
+#update variable names to add better groupings for the analysis - new = old
+model_df <- model_df %>%
+  rename(
+    "Reb_O_pp"="ORB_pp","Reb_D_pp"="DRB_pp", "Reb_T_pp"="TRB_pp",
+    
+    "Rtg_O_pp" = "ORtg_pp", "Rtg_D_pp" = "DRtg_pp",
+    
+    "FG_PCT_T" = "TS_PCT_adv",
+    "ThrP_Att_Rt_adv" = "ThrPAr_adv",
+    "FT_Rt_adv" ="FTr_adv",
+    
+    "Reb_O_pct_adv" = "ORB_PCT_adv","Reb_D_pct_adv" = "DRB_PCT_adv", "Reb_T_pct_adv" = "TRB_PCT_adv",
+    
+    "WS_O_adv" = "OWS_adv", "WS_D_adv" = "DWS_adv", "WS_T_adv" = "WS_adv", "WS_48_adv" = "WS_per_48_adv",
+    
+    "BPM_O_adv" = "OBPM_adv", "BPM_D_adv" = "DBPM_adv", "BPM_T_adv" = "BPM_adv",
+    
+    "FGA_Avg_Dis_sho" = "Avg_Dist_FGA_sho", "FGA%_2p_sho" = "PCT_FGA_Dis_2P_sho", "FGA%_0003_sho" = "PCT_FGA_Dis_0_3_sho", "FGA%_0310_sho" = "PCT_FGA_Dis_3_10_sho", "FGA%_1016_sho" = "PCT_FGA_Dis_10_16_sho", "FGA%_163p_sho" = "PCT_FGA_Dis_16_3P_sho",
+    
+    "FG%_0003_sho" = "FG_PCT_Dis_0_3_sho","FG%_0310_sho" = "FG_PCT_Dis_3_10_sho", "FG%_1016_sho" = "FG_PCT_Dis_10_16_sho", "FG%_163p_sho" = "FG_PCT_Dis_16_3P_sho",
+    
+    "ASTd_FG%_2p_sho" = "PCT_FG_Astd_2P_sho", "ASTd_FG%_3p_sho" = "PCT_FG_Astd_3P_sho",
+    "ThrPA%_Corn_sho" = "Corner_3s_PCT_3PA_sho", "ThrP%_Corn_sho" = "Corner_3s_PCT_3P_sho",
+    
+    "FG_PCT_e_pg" = "eFG_PCT_pg",
+    "Reb_O_pg" = "ORB_pg",
+    "Reb_D_pg" = "DRB_pg",
+    "Reb_T_pg" = "TRB_pg"
+  ) %>%
+  select(-c(Dunks_PCT_FGA_sho,Dunks_sho, Heave_Att_sho,Heaves_Comp,index1)) %>%
+  rename_with(~ str_replace(., "_PCT", "_pct"), contains("_PCT")) %>%
+  rename_with(~ str_replace(., "%", "_pct"), contains("%"))
+  # select(sort(colnames(.)))
+
+write.csv(model_df,"Data/model0611.csv")
+         
+```
+
+# Modeling
+
+There are 76 variables, so very high dimensional.  Start off with PCA to see if there's a way to reduce
+
+```{r}
+# library(readr)
+# NBACleanData <- read_csv("Data/NBACleanData.csv",show_col_types = FALSE)
+  
+```
+
+```{r}
+# nba <- NBACleanData %>%
+#   select(-c(1:10,"HOF","PF_pg","PF_pp","Heave_Att_sho","Heaves_Comp_sho","Dunks_PCT_FGA_sho","Dunks_sho")) #remove unwanted variables
+# # colnames(nba)
+# 
+# nba_2022 <- NBACleanData %>%
+#   filter(Year == 2022) %>%
+#   select(-c(1:10,"HOF","PF_pg","PF_pp","Heave_Att_sho","Heaves_Comp_sho","Dunks_PCT_FGA_sho","Dunks_sho")) #remove unwanted variables
+  
+
+```
+
+```{r}
+# # trial for removing variables are seem to be duplicative
+# nba <- NBACleanData %>%
+#   select(-c(1:10,"HOF","PF_pg","PF_pp","Heave_Att_sho","Heaves_Comp_sho","Dunks_PCT_FGA_sho","Dunks_sho")) %>% #remove unwanted variables 
+#   select(
+#     -FG_pp, #field goals made per 100 possessions
+#     -ThrP_pp, # three pointers made
+#     -TwoP_pp, # two pointers made
+#     -FT_pp, # free throws made
+#     -contains("_pg"), # removes per game
+#     -contains("FG_PCT"),
+#     -Avg_Dist_FGA_sho,
+#     -contains("Corner"),
+#     -contains("PCT_FG_Ast"),
+#     -TRB_pp
+#   ) 
+
+```
+
+```{r}
+library(tidyverse)
+library(corrr)
+
+model_df %>%
+  correlate() %>%
+  rearrange() %>%
+  shave() %>%
+  rplot(shape = 15)
+
+#This lists the highly correlated variables.  I will remove some
+model_df %>% 
+  correlate() %>%
+  stretch() %>%
+  filter(abs(r) >=0.7 | abs(r) <=-0.7) %>%
+  arrange(desc(abs(r))) %>%
+  count(x) %>%
+  arrange(desc(n))
+
+model_df %>% 
+  select(-contains("_adv")) %>%
+  select(-contains("_pg")) %>%
+  select(-c(ThrP_pp,TwoP_pp, FT_pp,FG_pp, # attempts and makes are obviously correlated.  We'll keep attempts.
+            Reb_T_pp, # Total and Def are correlated, same with Offensive
+            FGA_Avg_Dis_sho, # this is correlated with 0-3 ft shots
+            FGA_pct_2p_sho,
+            PTS_pp,
+            TwoP_pct_pp)) %>%
+  # select(-c(PTS_pg,PTS_pp,FG_pg,PER_adv,TwoPA_pg,FGA_pct_2p_sho)) %>%
+  # select(-c(ThrP_Att_Rt_adv, 
+  #           Reb_T_pct_adv, Reb_O_pct_adv,Reb_D_pct_adv,
+  #           AST_pct_adv,BLK_pct_adv,
+  #           WS_T_adv,BPM_T_adv)) %>% # many of the adv stats overlap
+  # select(-c(PTS_pg,PTS_pp)) %>% # Pts and FG overlap, obviously
+  # select(-c(ThrP_pg, ThrP_pp,
+  #           TwoP_pg,TwoP_pp,
+  #           FT_pg,FT_pp,
+  #           FG_pg,)) %>% # makes and attempts are correlated, so I'll remove makes
+  # select(-c(Reb_T_pg,Reb_T_pp)) %>% # Total rebounds and defensive overlap given that off rebs are less common
+  # select(-c(FGA_pct_2p_sho)) %>% #Wthis is correlated with ThrPA_pp.  I want 3 point attempts
+  # select(-c(FGA_Avg_Dis_sho)) %>% #Avg distance and 0-3 ft shots are correlated
+  # select(-c(FG_pct_T)) %>% #True and Effective are basically the same
+  correlate() %>%
+  stretch(remove.dups = TRUE) %>%
+  filter(abs(r) >=0.7 | abs(r) <=-0.7) %>%
+  arrange(desc(abs(r)))
+  # count(x) %>%
+  # arrange(desc(n))
+  
+# Many of the adv stats seems to be duplicative or highly correlated with other variables.  I want to keep some, but even these are likely combinations of other variables already included.
+
+model_df_corr <- model_df %>% 
+  select(-contains("_adv")) %>%
+  select(-contains("_pg")) %>%
+  select(-c(ThrP_pp,TwoP_pp, FT_pp,FG_pp, # attempts and makes are obviously correlated.  We'll keep attempts.
+            Reb_T_pp, # Total and Def are correlated, same with Offensive
+            FGA_Avg_Dis_sho, # this is correlated with 0-3 ft shots
+            FGA_pct_2p_sho,
+            PTS_pp,
+            TwoP_pct_pp)) 
+
+model_df_corr %>%
+  correlate() %>%
+  rearrange() %>%
+  shave() %>%
+  rplot(shape = 15)
+
+  
+```
+
+```{r}
+# ranking_lm <- model_df_corr %>%
+#   select(-Year, -Player,  -Tm) %>%
+#   lm(as.factor(Pos) ~ ., data = .)
+# options(scipen=9)
+# summary(ranking_lm)
+```
+
+```{r}
+library(tidymodels)
+
+nba_rec <- recipe(~ ., data = model_df_corr) %>%
+  update_role(Year, Player, Pos, Tm, new_role = "id") %>%
+  step_normalize(all_predictors()) %>%
+  step_pca(all_predictors()) %>%
+  prep() %>%
+  bake(model_df_corr)
+
+nba_prep <- prep(nba_rec)
+```
+
+```{r, fig.width = 12, fig.height= 10}
+tidied_pca <- tidy(nba_prep,2)
+
+tidied_pca %>%
+  filter(component %in% c('PC1','PC2','PC3','PC4','PC5')) %>%
+  mutate(component = fct_inorder(component)) %>%
+  ggplot(aes(value, terms, fill = terms)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~component, nrow = 1)
+
+
+```
+
+We want to see the percentage of variance explained by each PC
+```{r}
+# std deviation
+sdev <- nba_prep$steps[[2]]$res$sdev
+sdev
+
+tibble(component = unique(tidied_pca$component),
+       sdev = sdev) %>%
+  filter(component %in% paste0("PC", 1:20)) %>%
+  mutate(component = fct_inorder(component)) %>%
+  ggplot(aes(component, sdev)) +
+  geom_col() +
+  geom_hline(yintercept = 1) +
+  geom_text(aes(label = round(sdev,3), vjust = -0.5))
+
+# There are 8 PCs with a standard deviation above 1
+
+```
+
+```{r}
+percent_variation <- sdev^2 / sum(sdev^2)
+
+tibble(component = unique(tidied_pca$component),
+       percent_var = percent_variation) %>%
+  filter(component %in% paste0("PC", 1:13)) %>%
+  mutate(component = fct_inorder(component)) %>%
+  ggplot(aes(component, percent_var)) +
+  geom_col() +
+  scale_y_continuous(labels = scales::percent_format())
+
+```
+
+
+
+```{r}
+library(tidymodels)
+
+set.seed(525)
+
+kclust <- kmeans(nba_rec %>% select(-c(1:4)), centers = 8)
+kclust
+# kclust_2022 <- kmeans(nba_normal_2022, centers = 7)
+
+```
+
+```{r}
+library(broom)
+tidy(kclust)
+# tidy(kclust_2022)
+```
+
+
+```{r}
+augment(kclust, nba_rec) %>%
+  ggplot(aes(PC1, PC2, color = .cluster)) +
+  geom_point()
+
+# augment(kclust_2022, nba_normal_2022) %>%
+#   ggplot(aes(PTS_pg, VORP_adv, color = .cluster)) +
+#   geom_point()
+```
+
+
+```{r}
+augment(kclust, nba_rec)
+tidy(kclust)
+glance(kclust)
+
+
+# augment(kclust_2022, nba_normal_2022)
+# tidy(kclust_2022)
+# glance(kclust_2022)
+```
+
+```{r}
+kclusts <- 
+  tibble(k = 1:15) %>%
+  mutate(
+    kclust = map(k, ~ kmeans(nba_rec %>% select(-c(1:4)), .x)),
+    tidied = map(kclust, tidy),
+    glanced = map(kclust, glance),
+    augmented = map(kclust, augment, nba_rec %>% select(-c(1:4)))
+  )
+
+kclusts
+
+# kclusts_2022 <- 
+#   tibble(k = 1:15) %>%
+#   mutate(
+#     kclust_2022 = map(k, ~ kmeans(nba_normal_2022, .x)),
+#     tidied = map(kclust_2022, tidy),
+#     glanced = map(kclust_2022, glance),
+#     augmented = map(kclust_2022, augment, nba_normal_2022)
+#   )
+# 
+# kclusts_2022
+```
+
+
+```{r}
+kclusts %>%
+  unnest(glanced) %>%
+  ggplot(aes(k, tot.withinss)) +
+  geom_line(alpha = 0.8) +
+  geom_point(size = 2)
+
+kclusts %>%
+  unnest(glanced) %>%
+  ggplot(aes(k, tot.withinss-lead(tot.withinss))) +
+  geom_line(alpha = 0.8) +
+  geom_point(size = 2)
+
+kclusts %>%
+  unnest(glanced) %>%
+  ggplot(aes(k, tot.withinss-lead(tot.withinss,n=2))) +
+  geom_line(alpha = 0.8) +
+  geom_point(size = 2)
+
+
+kclusts %>%
+  unnest(glanced) %>%
+  ggplot(aes(k, tot.withinss)) +
+  geom_line(alpha = 0.8) +
+  geom_point(size = 2) +
+
+  geom_line(aes(k, tot.withinss-lead(tot.withinss)), alpha = 0.8 ) +
+  geom_point(aes(k, tot.withinss-lead(tot.withinss)),size = 2,color = "red") +
+
+  geom_line(aes(k, tot.withinss-lead(tot.withinss,n=2)), alpha = 0.8) +
+  geom_point(aes(k, tot.withinss-lead(tot.withinss,n=2)),size = 2, color = "blue")
+```
+
+
+
+```{r}
+clusters <- 
+  kclusts %>%
+  unnest(cols = c(tidied))
+
+assignments <- 
+  kclusts %>% 
+  unnest(cols = c(augmented))
+
+clusterings <- 
+  kclusts %>%
+  unnest(cols = c(glanced))
+
+clusters_2022 <- 
+  kclusts_2022 %>%
+  unnest(cols = c(tidied))
+
+assignments_2022 <- 
+  kclusts_2022 %>% 
+  unnest(cols = c(augmented))
+
+clusterings_2022 <- 
+  kclusts_2022 %>%
+  unnest(cols = c(glanced))
+
+
+```
+
+```{r}
+p1 <- 
+  ggplot(assignments,aes(x=FG_pp, y = FGA_pp)) +
+  geom_point(aes(color = .cluster), alpha = 0.8) + 
+  facet_wrap(~ k)
+p1
+```
+
+```{r}
+library(plotly)
+kclust <- kmeans(nba_rec %>% select(-c(1:4)), centers = 8)
+
+p <- augment(kclust,nba_rec) %>%
+  filter(Year== 2022) %>%
+  ggplot(aes(PC1,PC2,color = .cluster,
+         name = Player)) +
+  geom_point(alpha =0.8)
+
+ggplotly(p)
+```
+
+
+
+# hierarchical
+```{r}
+library(workflows)
+library(parsnip)
+library(tidyclust)
+library(tidyverse)
+```
+
+```{r}
+
+```
+
