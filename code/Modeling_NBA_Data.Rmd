@@ -544,7 +544,7 @@ I'll use PCA for hierarchical clustering as well to reduce the dimensionality of
 
 ## All Data
 This plot is the same as the intial plot using all the data, just as a reminder
-```{r fig.height = 4}
+```{r fig.height = 6, fig.width = 16}
 # recipe
 nba_rec_hier <- recipe(~ ., data = model_df) %>%
   update_role(Year, Player, Pos, Tm, new_role = "id") %>%
@@ -567,12 +567,12 @@ tibble(component = unique(tidied_pca_hier$component),
   ggplot(aes(component, percent_var)) +
   geom_col(position = "stack") +
   geom_text(aes(label = scales::percent((round(percent_var,4))),
-            vjust = -0.5), size = 4, color = "red"
+            vjust = -0.5), size = 3, color = "red"
             ) +
   geom_text(aes(label = scales::percent(cumsum(round(percent_var,4))),
-            vjust = -2), size = 5
+            vjust = -2), size = 3.5
             ) +
-  scale_y_continuous(labels = scales::percent_format(), limits = c(0,.30))
+  scale_y_continuous(labels = scales::percent_format(), limits = c(0,.35))
 ```
 
 ## Try the different hierarhcical clustering methods
@@ -629,38 +629,38 @@ Ward's is the closest to one, so that's the method that we'll use.
 
 I can run with all the data and omit the dendrograms
 ```{r}
-# the dendrograms take too long to generate if all the data is included, so a sample is taken
-model_df_hc <- nba_bake_hier %>%
-  select(-c(1:4)) 
-
-set.seed(42069)
-
-# Distance between observations matrix
-d <- dist(x=model_df_hc, method = "euclidean")
-
-# Hierarchical clustering using Complete Linkage
-nba_hclust_complete <- hclust(d, method = "complete")
-
-# Hierarchical clustering using Average Linkage
-nba_hclust_average <- hclust(d, method = "average")
-
-# Hierarchical clustering using Ward Linkage
-nba_hclust_ward <- hclust(d, method = "ward.D2")
-
-ac_metric <- list(
-  complete_ac = agnes(model_df_hc, metric = "euclidean", method = "complete")$ac,
-  average_ac = agnes(model_df_hc, metric = "euclidean", method = "average")$ac,
-  ward_ac = agnes(model_df_hc, metric = "euclidean", method = "ward")$ac
-)
-
-ac_metric
+# # the dendrograms take too long to generate if all the data is included, so a sample is taken
+# model_df_hc <- nba_bake_hier %>%
+#   select(-c(1:4)) 
+# 
+# set.seed(42069)
+# 
+# # Distance between observations matrix
+# d <- dist(x=model_df_hc, method = "euclidean")
+# 
+# # Hierarchical clustering using Complete Linkage
+# nba_hclust_complete <- hclust(d, method = "complete")
+# 
+# # Hierarchical clustering using Average Linkage
+# nba_hclust_average <- hclust(d, method = "average")
+# 
+# # Hierarchical clustering using Ward Linkage
+# nba_hclust_ward <- hclust(d, method = "ward.D2")
+# 
+# ac_metric <- list(
+#   complete_ac = agnes(model_df_hc, metric = "euclidean", method = "complete")$ac,
+#   average_ac = agnes(model_df_hc, metric = "euclidean", method = "average")$ac,
+#   ward_ac = agnes(model_df_hc, metric = "euclidean", method = "ward")$ac
+# )
+# 
+# ac_metric
 ```
 
 This further supports using wards
 
 This will give us the optimal number of clusters.  Similar to the methods used earlier in the analysis with k-means
 ```{r}
-fviz_nbclust(model_df_hc, FUNcluster = hcut, method = "wss", k.max = 15)
+# fviz_nbclust(model_df_hc, FUNcluster = hcut, method = "wss", k.max = 15)
 
 ```
 Again, this gives us 3, even in a lower dimensional space.
