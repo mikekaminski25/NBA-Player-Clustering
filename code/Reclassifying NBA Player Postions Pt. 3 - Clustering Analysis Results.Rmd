@@ -6,25 +6,160 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, cache = TRUE, warning = FALSE,
+                      message = FALSE, dpi = 180,
+                      fig.width = 10, fig.height = 5)
+
+knitr::opts_knit$set(root.dir = "C:/Users/mikek/Documents/NBA-Player-Clustering")
 ```
 
-## R Markdown
+# Libraries
+```{r libraries}
+library(tidymodels) # broom, dials, parsnip, tune, workflows, yardstick
+library(tidyverse) #ggplot2, dplyr, tidyr, readr, purr, tibble, stringr, lubridate
+library(gghighlight)
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r cars}
-summary(cars)
 ```
 
-## Including Plots
-
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
+# Read in the Data
+```{r Read_Data}
+NBACleanData <- read_csv("Data/model0611.csv",show_col_types = FALSE) %>% select(-1)
+model_df <-  NBACleanData %>% select(-80) %>%
+  mutate(Year = as.character(Year)) %>%
+  mutate(across(where(is.numeric), ~as.numeric(scale(.))))
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+From Pt.2 of the project, I decided to use 7 clusters.  Using PCA didn't really provide improved results in the dataset, plus I need to be able to explain the results in a concise format.  Therefore, I've opted to not use PCA to reduce dimensionality.  I've also decided to use kmeans over hierarchical, as I think it will be a little bit easier to interpret.
+
+# Modeling
+From the last part, here is the model
+```{r Model}
+nba_clust <- kmeans(model_df %>% select(-c(1:4)),
+                    iter.max = 500 , 
+                    nstart = 100 ,
+                    centers = 7)
+```
+
+```{r Augment}
+head(augment(nba_clust, model_df)[, c(80,1:9)],5) 
+
+nba_aug <- augment(nba_clust, model_df) %>% 
+  rename(Cluster = .cluster) %>%
+  select(-c(1:4)) %>%
+  select(Cluster, everything()) 
+
+test <- nba_aug %>%
+  pivot_longer(!Cluster, names_to = 'feature', values_to = 'value')
+```
+
+# Create a Dataframe for Plotting Results
+```{r dataframe}
+options(scipen = 99)
+kmeans_centers <- data.frame(Cluster = c(paste0('Cluster ', 1:7)), nba_clust$centers) %>% #creates a column w/ the cluster name
+  pivot_longer(!Cluster, names_to = 'feature', values_to = 'center') %>% #pivots longer for easier graphing
+  mutate(feature = as.factor(feature)) %>% #makes the feature a factor
+  mutate(Cluster = as.factor(Cluster))
+kmeans_centers
+```
+
+```{r}
+kmeans_centers %>%
+  arrange(Cluster, desc(center), feature) %>%
+  mutate(feature = factor(feature, levels = unique(feature))) %>%
+  ggplot(aes(x=feature,y=center, color= Cluster)) +
+  geom_point(color="#5A2D81") +
+  theme_minimal() +
+  gghighlight(Cluster=='Cluster 1', use_direct_label = FALSE) +
+  theme(legend.position = "none", 
+        axis.text.x = element_text(angle = 90, size = 9, hjust = 0.5),
+        axis.title = element_text(hjust = 0.5),
+        plot.title = element_text(hjust = 0.5),
+        plot.subtitle = element_text(hjust = 0.5)) +
+  labs(x = "Statistic", y = "Cluster Center", 
+     title = "Visualizing K-Means Cluster Makeups",
+     subtitle = "Cluster 1")
+   
+        
+```
+The plots below show the makeup of each cluster. Each stat category is listed on the x-axis and the cluster center is listed on the y-axis. The labels on each point represent the rank of that cluster within each stat category.  <br>
+
+A rank of 1 in the per game pre 100 possessions, and advanced stat categories (suffixed with pp, pg, adv), indicate that players in that cluster performed particularly well in that category - with the exception being in the personal foul and turnover stat categories (PF and TOV), where a high value is less desirable
+
+A rank of 1 in the shooting stat category is more informational rather than desirable or undesirable.  It represents, among other stats, the distances where players are taking shots from.  For example, it helps identify which players/clusters take 3-point shots vs shots close to the basket.
+
+Looking at Cluster 1, we see that players in this cluster get a lot of rebounds (Reb_T, Reb_D, Reb_O) - they have a high cluster center and rank first within that category.  We also see that they commit a lot of fouls and have a poor defensive rating.  A high cluster center for fouls is undesirable and a low cluster center for defensive rating means that these players aren't good at defense (more offensive minded).
+
+I've included a new position name for each cluster, a summary of each position (aka cluster), and listed some of the players from the 2022 season that fall into each position.
+
+```{r}
+#sets up the unique clusters for the for loop
+unique_cluster <- unique(kmeans_centers$Cluster)
+
+for (clust in unique_cluster) {
+  
+  # Filtered dataset for the specific value of clust
+  filtered_data <- kmeans_centers %>%
+    group_by(feature) %>%
+    mutate(rank = ifelse(as.character(feature) %in% c('PF_pg', 'PF_pp', 'TOV_pg', 'TOV_pp', 'TOV_pct_adv'), 
+                                      rank(center), 
+                                      rank(desc(center)))
+                         )%>% # adjust rank for high values in less desriable stat categories
+    arrange(case_when(Cluster == clust ~ 1, TRUE ~ 2), Cluster, rank, desc(center)) %>%
+    mutate(Cluster = as.character(Cluster)) %>%
+    filter(Cluster == clust)
+  
+  plot <- kmeans_centers %>%
+    group_by(feature) %>%
+    mutate(rank = ifelse(as.character(feature) %in% c('PF_pg', 'PF_pp', 'TOV_pg', 'TOV_pp', 'TOV_pct_adv'), 
+                                      rank(center), 
+                                      rank(desc(center)))
+                         )%>% # adjust rank for high values in less desriable stat categories
+    arrange(case_when(Cluster == clust ~ 1, TRUE ~ 2), Cluster, rank, desc(center)) %>%
+    ggplot(aes(x = factor(feature, levels = unique(feature)), y = center, color = clust)) +
+    geom_point(color = "#5A2D81") +
+    geom_text(data = filtered_data, aes(label = rank), color = "black", vjust = -0.5) +  # Add point labels for rank
+    theme_minimal() +
+    gghighlight(Cluster == clust, use_direct_label = FALSE) +
+    theme(legend.position = "none",
+          axis.text.x = element_text(angle = 90, size = 9, hjust = 0.5),
+          axis.title = element_text(hjust = 0.5),
+          plot.title = element_text(hjust = 0.5),
+          plot.subtitle = element_text(hjust = 0.5)) +
+    labs(x = "Statistic", y = "Cluster Center",
+         title = "Visualizing K-Means Cluster Makeups",
+         subtitle = clust)
+   
+  print(plot)
+}
+```
+
+```{r}
+final_df <- model_df %>%
+  select(c(1:4)) %>%
+  cbind(nba_aug) %>%
+  mutate(Cluster = as.character(Cluster))
+
+df_2022 <- final_df %>%
+  filter(Year %in% '2022')
+
+df_2022 %>%
+  filter(Cluster == 1)
+```
+
+Cluster 1: <br>
+- 21 Players, with the majority being traditional centers.
+-- Noteable Players: Anthony Davis, Bam Adebayo, Christian Wood, Deandre Ayton, Domantas Sabonis, Kristaps Porzingis, Rudy Gobert
+- They rank in the top 3 for about 75% of all the stats.
+- They get a lot of rebounds, blocks, points, and minutes per game and per 100 possessions.  They have high Win Share values as well as high PER, VORP, and BPM values.  They take shots close to the basket (between 0-10 feet) and shoot a lot of free throws
+- They rarely shoot 3-pointers, they turnover the ball, and they commit a lot of fouls.  They also have a poor defensive rating per (points allowed while they're on the floor), but given they play a lot of minutes, this might be excepted.  Their Defensive Win Share is high, so a low defensive rating isn't too concerning.
+
+```{r}
+df_2022 %>%
+  filter(Cluster == 1) %>%
+  ggplot(aes(x = Pos)) +
+  geom_bar(aes(fill = Pos), stat = "count") +
+   geom_text(stat = "count", aes(label = ..count..), vjust = -0.5, color = "black") +
+  scale_fill_manual(values = c("red", "blue", "green")) +
+  labs(x = "Pos", y = "Count", title = "Bar Plot of Traditional Positions in th Cluster")
+```
+
