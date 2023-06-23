@@ -33,35 +33,37 @@ library(corrr)
 library(tidyclust)
 ```
 
-```{r}
+```{r Read_Data}
 NBACleanData <- read_csv("Data/model0611.csv",show_col_types = FALSE) %>% select(-1)
-model_df <-  NBACleanData
+model_df <-  NBACleanData %>%
+  mutate(Year = as.character(Year)) %>%
+  mutate(across(where(is.numeric), ~as.numeric(scale(.))))
 ```
 
 # K-Means
-```{r}
+```{r kmeans1}
 nba_clust <- kmeans(model_df %>% select(-c(1:4,80)), centers = 3) # removes und needed variables
 ```
 
 #### Tidy the nba_clust data
-```{r}
+```{r tidy}
 tidy(nba_clust)[, 1:8] # centers of the clusters
 ```
 
 #### Augment and plot the nba_clust data
-```{r}
+```{r augment1}
 #augment shows all the data and includes the cluster number
 head(augment(nba_clust, model_df)[, c(81,1:9)],5) 
 ```
 
-```{r}
+```{r augment2}
 augment(nba_clust, model_df) %>%
   ggplot(aes(FG_pp, FGA_pp, color = .cluster)) + # the aes values can be changed if needed
   geom_point()
 ```
 
 #### Glance the nba_clust data
-```{r}
+```{r glance}
 #glance gives us other useful metrics from the model
 glance(nba_clust)
 ```
@@ -87,7 +89,7 @@ The elbow looks like it's at 2 or 3.  It may be beneficial to plot the change fo
 
 ### Elbow plots - k+1, k+2, k+3
 This shows the difference from k to k+1, k to k+2, and k to k+3
-```{r}
+```{r }
 kclusts %>%
   unnest(glanced) %>%
   ggplot(aes(k, tot.withinss)) +
@@ -120,7 +122,7 @@ The data is fairly high dimensional, so maybe reducing the dimensionality will y
 Reducing the dimensionality using PCA.
 
 #### Create a recipe using all the data
-```{r}
+```{r }
 #create a recipe
 nba_rec <- recipe(~ ., data = model_df) %>%
   update_role(Year, Player, Pos, Tm, new_role = "id") %>% #might need these variables later
@@ -155,7 +157,7 @@ tidied_pca %>%
 ```
 
 ## How much variance is being captured?
-```{r, fig.width= 14, fig.height = 3}
+```{r fig.width= 14, fig.height = 3}
 
 sdev <- nba_prep$steps[[2]]$res$sdev 
 
@@ -191,7 +193,7 @@ nba_prep_80 <- prep(nba_rec_80)
 ```
 
 Start with 3 clusters just to see how the data looks
-```{r}
+```{r }
 # the template field stores the PCA variables
 pca_80 <- nba_prep_80$template %>%
     mutate(Year = as.character(Year),
@@ -207,25 +209,25 @@ kclust <- kmeans(pca_80 %>% select(-c(1:4)), centers = 3)
 ```
 
 #### Tidy the kclust data
-```{r}
+```{r }
 #The tidy function gives us the centers from each variable (PCs)
 tidy(kclust)
 ```
 
 #### Augment and plot the kclust data
-```{r}
+```{r }
 #augment shows all the data and includes the cluster number
 head(augment(kclust, pca_80),5) 
 ```
 
-```{r}
+```{r }
 augment(kclust, pca_80) %>%
   ggplot(aes(PC1, PC2, color = .cluster)) + # the PCx values can be changed as needed
   geom_point()
 ```
 
 #### Glance the kclust data
-```{r}
+```{r }
 #glance gives us other useful metrics from the model
 glance(kclust)
 ```
