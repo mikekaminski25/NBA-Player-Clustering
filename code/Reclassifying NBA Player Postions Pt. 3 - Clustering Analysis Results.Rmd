@@ -64,45 +64,47 @@ kmeans_centers <- data.frame(Cluster = c(paste0('Cluster ', 1:7)), nba_clust$cen
 head(kmeans_centers)
 ```
 
-The plots below show the makeup of each cluster. Each stat category is listed on the x-axis and the cluster center is listed on the y-axis. The labels on each point represent the rank of that cluster within each stat category.  <br>
+The plots below showcase the makeup of each cluster. 
 
-A rank of 1 in the per game pre 100 possessions, and advanced stat categories (suffixed with pp, pg, adv), indicate that players in that cluster performed particularly well in that category - with the exception being in the personal foul and turnover stat categories (PF and TOV), where a high value is less desirable
+* Plot 1: Each stat category is listed on the x-axis and the cluster center is listed on the y-axis. The labels on each point represent the rank of that cluster within each stat category.  <br>
+  + A rank of 1 in the per game pre 100 possessions, and advanced stat categories (suffixed with pp, pg, adv), indicate that players in that cluster performed particularly well in that category - with the exception being in the personal foul and turnover stat categories (PF and TOV), where a high value is less desirable
+  + A rank of 1 in the shooting stat category is more informational rather than desirable or undesirable.  It represents, among other stats, the distances where players are taking shots from.  For example, it helps identify which players/clusters take 3-point shots vs shots close to the basket.
+  + Looking at Cluster 1, we see that players in this cluster get a lot of rebounds (Reb_T, Reb_D, Reb_O) - they have a high cluster center and rank first within that category.  We also see that they commit a lot of fouls and have a poor defensive rating.  A high cluster center for fouls is undesirable and a low cluster center for defensive rating means that these players aren't good at defense (more offensive minded).
 
-A rank of 1 in the shooting stat category is more informational rather than desirable or undesirable.  It represents, among other stats, the distances where players are taking shots from.  For example, it helps identify which players/clusters take 3-point shots vs shots close to the basket.
+* Plot 2: This shows the percentage of stats that fall within each rank for the cluster
+  + If there's a high percentage in ranks 1 and 2, it means that the cluster includes players that generally perform well.  If there's a high percentage in ranks 6 and 7, that means that the cluster includes players that generally don't contribute as much as the others
 
-Looking at Cluster 1, we see that players in this cluster get a lot of rebounds (Reb_T, Reb_D, Reb_O) - they have a high cluster center and rank first within that category.  We also see that they commit a lot of fouls and have a poor defensive rating.  A high cluster center for fouls is undesirable and a low cluster center for defensive rating means that these players aren't good at defense (more offensive minded).
+* Plot 3:  This shows the count of traditional NBA positions in each cluster.
 
 I've included a new position name for each cluster, a summary of each position (aka cluster), and listed some of the players from the 2022 season that fall into each position.
 
+# Function for plotting all the clusters
 ```{r}
-#sets up the unique clusters for the for loop
-unique_cluster <- unique(kmeans_centers$Cluster)
-
-for (clust in unique_cluster) {
+cluster_plots <- function(cluster_value) {
   
-  # Filtered dataset for the specific value of clust
+  # Geom_point for rankings in each category
   filtered_data <- kmeans_centers %>%
     group_by(feature) %>%
     mutate(rank = ifelse(as.character(feature) %in% c('PF_pg', 'PF_pp', 'TOV_pg', 'TOV_pp', 'TOV_pct_adv'), 
-                                      rank(center), 
-                                      rank(desc(center)))
-                         )%>% # adjust rank for high values in less desriable stat categories
-    arrange(case_when(Cluster == clust ~ 1, TRUE ~ 2), Cluster, rank, desc(center)) %>%
+                         rank(center), 
+                         rank(desc(center)))
+    )%>% # adjust rank for high values in less desriable stat categories
+    arrange(case_when(Cluster == cluster_value ~ 1, TRUE ~ 2), Cluster, rank, desc(center)) %>%
     mutate(Cluster = as.character(Cluster)) %>%
-    filter(Cluster == clust)
+    filter(Cluster == cluster_value)
   
   plot <- kmeans_centers %>%
     group_by(feature) %>%
     mutate(rank = ifelse(as.character(feature) %in% c('PF_pg', 'PF_pp', 'TOV_pg', 'TOV_pp', 'TOV_pct_adv'), 
-                                      rank(center), 
-                                      rank(desc(center)))
-                         )%>% # adjust rank for high values in less desriable stat categories
-    arrange(case_when(Cluster == clust ~ 1, TRUE ~ 2), Cluster, rank, desc(center)) %>%
-    ggplot(aes(x = factor(feature, levels = unique(feature)), y = center, color = clust)) +
+                         rank(center), 
+                         rank(desc(center)))
+    )%>% # adjust rank for high values in less desriable stat categories
+    arrange(case_when(Cluster == cluster_value ~ 1, TRUE ~ 2), Cluster, rank, desc(center)) %>%
+    ggplot(aes(x = factor(feature, levels = unique(feature)), y = center, color = cluster_value)) +
     geom_point(color = "#5A2D81") +
     geom_text(data = filtered_data, aes(label = rank), color = "black", vjust = -0.5) +  # Add point labels for rank
     theme_minimal() +
-    gghighlight(Cluster == clust, use_direct_label = FALSE) +
+    gghighlight(Cluster == cluster_value, use_direct_label = FALSE) +
     theme(legend.position = "none",
           axis.text.x = element_text(angle = 90, size = 9, hjust = 0.5),
           axis.title = element_text(hjust = 0.5),
@@ -110,183 +112,116 @@ for (clust in unique_cluster) {
           plot.subtitle = element_text(hjust = 0.5)) +
     labs(x = "Statistic", y = "Cluster Center",
          title = "Visualizing K-Means Cluster Makeups",
-         subtitle = clust)
-   
+         subtitle = cluster_value)
+  
+  print(plot)
+  
+  
+  # Bar Plot for Percentage of Stat Categories in Each Rank
+  filtered_data <- kmeans_centers %>%
+    group_by(feature) %>%
+    mutate(rank = ifelse(as.character(feature) %in% c('PF_pg', 'PF_pp', 'TOV_pg', 'TOV_pp', 'TOV_pct_adv'), 
+                         rank(center), 
+                         rank(desc(center)))
+    ) %>%
+    arrange(case_when(Cluster == cluster_value ~ 1, TRUE ~ 2), Cluster, rank, desc(center)) %>%
+    mutate(Cluster = as.character(Cluster)) %>%
+    filter(Cluster == cluster_value)
+  
+  plot <- kmeans_centers %>%
+    group_by(feature) %>%
+    mutate(rank = ifelse(as.character(feature) %in% c('PF_pg', 'PF_pp', 'TOV_pg', 'TOV_pp', 'TOV_pct_adv'), 
+                         rank(center), 
+                         rank(desc(center)))
+    ) %>%
+    ungroup() %>%
+    select(Cluster, rank) %>%
+    group_by(Cluster, rank) %>%
+    summarise(count = n()) %>%
+    ungroup() %>%
+    group_by(Cluster) %>%
+    mutate(percentage = count / sum(count) * 100) %>%
+    filter(Cluster == cluster_value) %>%
+    ggplot(aes(x = as.factor(rank), y = percentage, fill = as.factor(rank))) +
+    geom_bar(stat = "identity") +
+    geom_text(aes(label = paste0(round(percentage, 0), "%")), vjust = -0.5, color = "black") +
+    labs(x = "Rank", y = "Percentage",
+         title = "Percentage of Stat Categories in Each Rank", subtitle = cluster_value) +
+    scale_fill_discrete(name = "Rank") +
+    scale_x_discrete(limits = as.character(1:7)) +
+    theme_minimal()
+  
+  print(plot)
+  
+  #Bar plot that shows count of traditional positions in each cluster
+  df_2022 <- final_df %>%
+    filter(Year %in% '2022')
+  
+  count_df <- df_2022 %>%
+    filter(Cluster == substr(cluster_value, nchar(cluster_value), nchar(cluster_value))) %>%
+    group_by(Pos) %>%
+    summarise(count = n()) %>%
+    ungroup() %>%
+    arrange(desc(count))
+  
+  plot <- ggplot(count_df, aes(x = reorder(Pos, -count), y = count, fill = Pos)) +
+    geom_bar(stat = "identity") +
+    geom_text(aes(label = count), vjust = -0.5, color = "black") +
+    scale_fill_manual(values = c("red", "blue", "green", "yellow", "orange")) +
+    labs(x = "Pos", y = "Count", title = paste0("Bar Plot of Traditional Positions in ", cluster_value))
+  
   print(plot)
 }
 ```
 
+## Cluster 1
 ```{r}
-final_df <- model_df %>%
-  select(c(1:4)) %>%
-  cbind(nba_aug) %>%
-  mutate(Cluster = as.character(Cluster))
+cluster_plots('Cluster 1')
+```
 
-df_2022 <- final_df %>%
-  filter(Year %in% '2022')
+## Cluster 2
+```{r}
+cluster_plots('Cluster 2')
+```
+
+## Cluster 3
+```{r}
+cluster_plots('Cluster 3')
+```
+
+## Cluster 4
+```{r}
+cluster_plots('Cluster 4')
+```
+
+## Cluster 5
+```{r}
+cluster_plots('Cluster 5')
+```
+
+## Cluster 6
+```{r}
+cluster_plots('Cluster 6')
+```
+
+## Cluster 7
+```{r}
+cluster_plots('Cluster 7')
+```
+
+```{r}
 
 df_2022 %>%
-  filter(Cluster == 2) %>%
-  select(1:10)
-```
-
-# Cluster 1:
-- 20 Players, with the majority being traditional centers.<br>
-  - Noteable Players: Anthony Davis, Bam Adebayo, Christian Wood, Deandre Ayton, Domantas Sabonis, Kristaps Porzingis, Rudy Gobert <br>
-- They rank in the top 3 for about 75% of all the stats.<br>
-- They get a lot of rebounds, blocks, points, and minutes per game and per 100 possessions.  They have high Win Share values as well as high PER, VORP, and BPM values.  They take shots close to the basket (between 0-10 feet) and shoot a lot of free throws <br>
-- They rarely shoot 3-pointers, they turnover the ball, and they commit a lot of fouls.  They also have a poor defensive rating per (points allowed while they're on the floor), but given they play a lot of minutes, this might be excepted.  Their Defensive Win Share is high, so a low defensive rating isn't too concerning. <br>
-
-```{r}
-count_df <- df_2022 %>%
-  filter(Cluster == 1) %>%
-  group_by(Pos) %>%
-  summarise(count = n()) %>%
-  arrange(desc(count))
-
-ggplot(count_df, aes(x = reorder(Pos, -count), y = count, fill = Pos)) +
-  geom_bar(stat = "identity") +
-  geom_text(aes(label = count), vjust = -0.5, color = "black") +
-  scale_fill_manual(values = c("red", "blue", "green", "yellow", "orange")) +
-  labs(x = "Pos", y = "Count", title = "Bar Plot of Traditional Positions in the Cluster")
-
-```
-
-# Cluster 2:
-- 52 Players, with the majority being traditional shooting guards, small forwards, or power forwards.<br>
-  - Noteable Players: Blake Griffin, Carmelo Anthony,Duncan Robinson, Jae Crowder,Jeremy Lamb  <br>
-- Only about a quarter of there stats are in the top 3 and 50% are in the bottom 3. <br>
-- They shoot a lot of threes, have a high defensive rating, and rarely turnover the ball. <br>
-- The don't get a lot of rebounds, rank low in win share categories, and don't shoot a lot of free throws. <br>
-```{r}
-count_df <- df_2022 %>%
-  filter(Cluster == 2) %>%
-  group_by(Pos) %>%
-  summarise(count = n()) %>%
-  arrange(desc(count))
-
-ggplot(count_df, aes(x = reorder(Pos, -count), y = count, fill = Pos)) +
-  geom_bar(stat = "identity") +
-  geom_text(aes(label = count), vjust = -0.5, color = "black") +
-  scale_fill_manual(values = c("red", "blue", "green", "yellow", "orange")) +
-  labs(x = "Pos", y = "Count", title = "Bar Plot of Traditional Positions in the Cluster")
-
-```
-
-
-# Cluster 3:
-- 67 Players, with the majority being traditional shooting guards and point guards.<br>
-  - Noteable Players: Kelly Olynyk (the lone Center),Klay Thompson, CJ McCollum ,Fred VanVleet, Derrick Rose <br>
-- They don't rank first in anything, but are in the top 3 for about 50% of the stat categories.  They are in the bottom 3 for ~30% of the stat catergories <br>
-- They shoot a lot of threes, get a lot of assists and steals, they get points and minutes, and they Usage and their Offensive BPM is high <br>
-- The don't get blocks or rebounds and the Defensive BPM is low. <br>
-```{r}
-count_df <- df_2022 %>%
-  filter(Cluster == 3) %>%
-  group_by(Pos) %>%
-  summarise(count = n()) %>%
-  arrange(desc(count))
-
-ggplot(count_df, aes(x = reorder(Pos, -count), y = count, fill = Pos)) +
-  geom_bar(stat = "identity") +
-  geom_text(aes(label = count), vjust = -0.5, color = "black") +
-  scale_fill_manual(values = c("red", "blue", "green", "yellow", "orange")) +
-  labs(x = "Pos", y = "Count", title = "Bar Plot of Traditional Positions in the Cluster")
-
-```
-
-# Cluster 4:
-- 27 Players, with the majority being Centers and Forwards.<br>
-  - Noteable Players: DeMarcus Cousins, Luka Garza, Marvin Bagley III, Thaddeus Young <br>
-- They're in the top 3 for about 20% fo the stat categories and bottom 3 for about 70%, with ~50% being second to last or last.
-- They rank first in show attempts between 10-16 feet and second in shot attempts between 0-3 feet and 10-16 feet.  They can shoot from all over the floor really.  They're in the top 3 for rebounds and blocks as well.<br>
-- Their Advanced stats are low (VORP, BPM, Win Share), they don't score a lot of points or play a lot of minutes.  They don't get a ton of steals or assists and rarely take 3-pointers. <br>
-```{r}
-count_df <- df_2022 %>%
-  filter(Cluster == 4) %>%
-  group_by(Pos) %>%
-  summarise(count = n()) %>%
-  arrange(desc(count))
-
-ggplot(count_df, aes(x = reorder(Pos, -count), y = count, fill = Pos)) +
-  geom_bar(stat = "identity") +
-  geom_text(aes(label = count), vjust = -0.5, color = "black") +
-  scale_fill_manual(values = c("red", "blue", "green", "yellow", "orange")) +
-  labs(x = "Pos", y = "Count", title = "Bar Plot of Traditional Positions in the Cluster")
-
-```
-
-# Cluster 5:
-- 60 Players, with the majority being guards.<br>
-  - Noteable Players: None one is super notable, but the one Center is Killian Tillie and the one Power Forward is Semi Ojeleye <br>
-- They're only in the top 3 in a handful of stats and close to 70% in the bottom 3, with nearly 50% being last..
-- They rank first in attempt percetnage beyond 16 feet, so when they do shoot, they shoot from long range.  They're first in fouls per game, likely due to being last in minutes per game. <br>
-- They rank last in almost of the stat categories.. <br>
-```{r}
-count_df <- df_2022 %>%
-  filter(Cluster == 5) %>%
-  group_by(Pos) %>%
-  summarise(count = n()) %>%
-  arrange(desc(count))
-
-ggplot(count_df, aes(x = reorder(Pos, -count), y = count, fill = Pos)) +
-  geom_bar(stat = "identity") +
-  geom_text(aes(label = count), vjust = -0.5, color = "black") +
-  scale_fill_manual(values = c("red", "blue", "green", "yellow", "orange")) +
-  labs(x = "Pos", y = "Count", title = "Bar Plot of Traditional Positions in the Cluster")
-
-```
-
-# Cluster 6:
-- 48 Players, with the majority being Centers<br>
-  - Noteable Players: Andre Drummond, Draymond Green, Dwight Howard,Tristan Thompson  The lone shooting guard is Terry Taylor <br>
-- They're first in about 25% of the stat categories, 40% are top 3 and 40% are bottom 3.
-- They get a lot of Offensive Rebounds and rebounds overall.  They shoot close to the basket and shoot a lot of free throws. <br>
-- They don't get a lot of steals or assists, and they don't shoot 3-pointers.  They foul fair amount and don't score a ton of points <br>
-```{r}
-count_df <- df_2022 %>%
-  filter(Cluster == 6) %>%
-  group_by(Pos) %>%
-  summarise(count = n()) %>%
-  arrange(desc(count))
-
-ggplot(count_df, aes(x = reorder(Pos, -count), y = count, fill = Pos)) +
-  geom_bar(stat = "identity") +
-  geom_text(aes(label = count), vjust = -0.5, color = "black") +
-  scale_fill_manual(values = c("red", "blue", "green", "yellow", "orange")) +
-  labs(x = "Pos", y = "Count", title = "Bar Plot of Traditional Positions in the Cluster")
-
-```
-
-# Cluster 7:
-- 33 Players, with the majority being point guards, but it's there's at 10% in each tradtional position<br>
-  - Noteable Players: Chris Paul, James Harden, Giannis Antetokounmpo, Joel Embiid, Kevin Durant, LeBron James, Luka Doncic, Nikola Jokic   <br>
-- These are your franchise players, the superstars.  They rank first in abour 40% of the stat categories and rank in the bottom 3 for only a few.
-- What don't they do?  Points, assists, minutes, 3-pointers, adnvanced stats (BPM, Win Share, Usage) <br>
-- They commit the most turnovers, but that's likely because they have the ball a ton. <br>
-```{r}
-count_df <- df_2022 %>%
   filter(Cluster == 7) %>%
-  group_by(Pos) %>%
-  summarise(count = n()) %>%
-  arrange(desc(count))
+  select(1:10)
 
-ggplot(count_df, aes(x = reorder(Pos, -count), y = count, fill = Pos)) +
-  geom_bar(stat = "identity") +
-  geom_text(aes(label = count), vjust = -0.5, color = "black") +
-  scale_fill_manual(values = c("red", "blue", "green", "yellow", "orange")) +
-  labs(x = "Pos", y = "Count", title = "Bar Plot of Traditional Positions in the Cluster")
+df_2022 %>%
+  group_by(Cluster) %>%
+  summarise(count = n()) %>%
+  mutate(percentage = count / sum(count) * 100)
 
 ```
 
-# New Positions:
-1. Rebound Kings
-2. 3-point Threats
-3. Game Lieutenants
-4. Bigmen Shooters
-5. Bench Support
-6. Primetime Bigs
-7. Superstars
 
 # Analysis of 2022 Players
 ## Historical and Current Cluster Analysis
@@ -299,6 +234,7 @@ The below plot shows how the player types have evolved since the 2000-2001 seaso
 * Bench Support has remained relatively constant, which makes sense since bench players are always needed
 * Primetime Bigs have remained relatively constant, fluctuateing between 7% and 12%
 * Superstars have also remained constant, but low, generally between 4% and 9%.  These players are valuable and hard to come by
+
 ```{r fig.width = 16, fig.height = 10}
 ggplot(final_df %>% mutate(Year = as.numeric(Year)),
        aes(x=Year, 
@@ -345,6 +281,109 @@ ggplot(final_df %>%
   labs(fill = "Traditional\nPosition", x = "Count") +
   theme(legend.key.height=unit(2, "cm"))
 ```
+
+# Function for plotting all the clusters
+```{r}
+cluster_plots <- function(cluster_value) {
+  
+  # Geom_point for rankings in each category
+  filtered_data <- kmeans_centers %>%
+    group_by(feature) %>%
+    mutate(rank = ifelse(as.character(feature) %in% c('PF_pg', 'PF_pp', 'TOV_pg', 'TOV_pp', 'TOV_pct_adv'), 
+                         rank(center), 
+                         rank(desc(center)))
+    )%>% # adjust rank for high values in less desriable stat categories
+    arrange(case_when(Cluster == cluster_value ~ 1, TRUE ~ 2), Cluster, rank, desc(center)) %>%
+    mutate(Cluster = as.character(Cluster)) %>%
+    filter(Cluster == cluster_value)
+  
+  plot <- kmeans_centers %>%
+    group_by(feature) %>%
+    mutate(rank = ifelse(as.character(feature) %in% c('PF_pg', 'PF_pp', 'TOV_pg', 'TOV_pp', 'TOV_pct_adv'), 
+                         rank(center), 
+                         rank(desc(center)))
+    )%>% # adjust rank for high values in less desriable stat categories
+    arrange(case_when(Cluster == cluster_value ~ 1, TRUE ~ 2), Cluster, rank, desc(center)) %>%
+    ggplot(aes(x = factor(feature, levels = unique(feature)), y = center, color = cluster_value)) +
+    geom_point(color = "#5A2D81") +
+    geom_text(data = filtered_data, aes(label = rank), color = "black", vjust = -0.5) +  # Add point labels for rank
+    theme_minimal() +
+    gghighlight(Cluster == cluster_value, use_direct_label = FALSE) +
+    theme(legend.position = "none",
+          axis.text.x = element_text(angle = 90, size = 9, hjust = 0.5),
+          axis.title = element_text(hjust = 0.5),
+          plot.title = element_text(hjust = 0.5),
+          plot.subtitle = element_text(hjust = 0.5)) +
+    labs(x = "Statistic", y = "Cluster Center",
+         title = "Visualizing K-Means Cluster Makeups",
+         subtitle = cluster_value)
+  
+  print(plot)
+  
+  
+  # Bar Plot for Percentage of Stat Categories in Each Rank
+  filtered_data <- kmeans_centers %>%
+    group_by(feature) %>%
+    mutate(rank = ifelse(as.character(feature) %in% c('PF_pg', 'PF_pp', 'TOV_pg', 'TOV_pp', 'TOV_pct_adv'), 
+                         rank(center), 
+                         rank(desc(center)))
+    ) %>%
+    arrange(case_when(Cluster == cluster_value ~ 1, TRUE ~ 2), Cluster, rank, desc(center)) %>%
+    mutate(Cluster = as.character(Cluster)) %>%
+    filter(Cluster == cluster_value)
+  
+  plot <- kmeans_centers %>%
+    group_by(feature) %>%
+    mutate(rank = ifelse(as.character(feature) %in% c('PF_pg', 'PF_pp', 'TOV_pg', 'TOV_pp', 'TOV_pct_adv'), 
+                         rank(center), 
+                         rank(desc(center)))
+    ) %>%
+    ungroup() %>%
+    select(Cluster, rank) %>%
+    group_by(Cluster, rank) %>%
+    summarise(count = n()) %>%
+    ungroup() %>%
+    group_by(Cluster) %>%
+    mutate(percentage = count / sum(count) * 100) %>%
+    filter(Cluster == cluster_value) %>%
+    ggplot(aes(x = as.factor(rank), y = percentage, fill = as.factor(rank))) +
+    geom_bar(stat = "identity") +
+    geom_text(aes(label = paste0(round(percentage, 0), "%")), vjust = -0.5, color = "black") +
+    labs(x = "Rank", y = "Percentage",
+         title = "Percentage of Stat Categories in Each Rank", subtitle = cluster_value) +
+    scale_fill_discrete(name = "Rank") +
+    scale_x_discrete(limits = as.character(1:7)) +
+    theme_minimal()
+  
+  print(plot)
+  
+  #Bar plot that shows count of traditional positions in each cluster
+  df_2022 <- final_df %>%
+    filter(Year %in% '2022')
+  
+  count_df <- df_2022 %>%
+    filter(Cluster == substr(cluster_value, nchar(cluster_value), nchar(cluster_value))) %>%
+    group_by(Pos) %>%
+    summarise(count = n()) %>%
+    ungroup() %>%
+    arrange(desc(count))
+  
+  plot <- ggplot(count_df, aes(x = reorder(Pos, -count), y = count, fill = Pos)) +
+    geom_bar(stat = "identity") +
+    geom_text(aes(label = count), vjust = -0.5, color = "black") +
+    scale_fill_manual(values = c("red", "blue", "green", "yellow", "orange")) +
+    labs(x = "Pos", y = "Count", title = paste0("Bar Plot of Traditional Positions in ", cluster_value))
+  
+  print(plot)
+}
+```
+
+```{r}
+cluster_plots('Cluster 1')
+```
+
+
+
 
 ```{r include = FALSE}
 df_2022 <- df_2022 %>%
