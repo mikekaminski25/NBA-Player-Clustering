@@ -23,7 +23,7 @@ library(gghighlight)
 
 # Read in the Data
 ```{r Read_Data}
-NBACleanData <- read_csv("Data/model0611.csv",show_col_types = FALSE) %>% select(-1)
+NBACleanData <- read_csv("Data/model0623.csv",show_col_types = FALSE) %>% select(-1)
 model_df <-  NBACleanData %>% select(-80) %>%
   mutate(Year = as.character(Year)) %>%
   mutate(across(where(is.numeric), ~as.numeric(scale(.))))
@@ -126,13 +126,12 @@ df_2022 <- final_df %>%
   filter(Year %in% '2022')
 
 df_2022 %>%
-  filter(Cluster == 7) %>%
-  select(1:10) %>%
-  arrange(Tm)
+  filter(Cluster == 2) %>%
+  select(1:10)
 ```
 
 # Cluster 1:
-- 21 Players, with the majority being traditional centers.<br>
+- 20 Players, with the majority being traditional centers.<br>
   - Noteable Players: Anthony Davis, Bam Adebayo, Christian Wood, Deandre Ayton, Domantas Sabonis, Kristaps Porzingis, Rudy Gobert <br>
 - They rank in the top 3 for about 75% of all the stats.<br>
 - They get a lot of rebounds, blocks, points, and minutes per game and per 100 possessions.  They have high Win Share values as well as high PER, VORP, and BPM values.  They take shots close to the basket (between 0-10 feet) and shoot a lot of free throws <br>
@@ -154,7 +153,7 @@ ggplot(count_df, aes(x = reorder(Pos, -count), y = count, fill = Pos)) +
 ```
 
 # Cluster 2:
-- 183  Players, with the majority being traditional shooting guards, small forwards, or power forwards.<br>
+- 52 Players, with the majority being traditional shooting guards, small forwards, or power forwards.<br>
   - Noteable Players: Blake Griffin, Carmelo Anthony,Duncan Robinson, Jae Crowder,Jeremy Lamb  <br>
 - Only about a quarter of there stats are in the top 3 and 50% are in the bottom 3. <br>
 - They shoot a lot of threes, have a high defensive rating, and rarely turnover the ball. <br>

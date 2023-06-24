@@ -7,7 +7,7 @@ output: html_document
 
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, cache = TRUE, warning = FALSE,
+knitr::opts_chunk$set(echo = TRUE, cache = FALSE, warning = FALSE,
                       message = FALSE, dpi = 180,
                       fig.width = 10, fig.height = 5)
 ```
@@ -210,7 +210,7 @@ final_df2 <- dupcol_df1 %>%
 
 It's likely that players who didn't play a ton of games will impact the analysis, so it would be beneficial to remove these players.
 
-```{r}
+```{r include=FALSE}
 final_df2 %>%
   ggplot(aes(Year, G)) +
   geom_point()
@@ -249,7 +249,7 @@ ggplot(final_df_with_qs_g, aes(x=G, y=as.factor(Year))) +
 
 ### Create a cutoff
 Removing players at the 25% percentile or 50% percentile would likely make the most sense.
-```{r}
+```{r include= FALSE}
 final_df_with_qs_g %>%
   filter(G >= quant25) %>%
   summarize(count = n())
@@ -268,13 +268,22 @@ final_df_with_qs_g %>%
 final_df_with_qs_g %>%
   filter(G >= quant50) %>%
   summarise(sum(is.na(.)))
-  
-final_df_with_qs_g <- final_df_with_qs_g %>%
-  mutate_all(~ replace_na(., 0))
+
 
 ```
 
-Given the data and the obejctive, it's likely better to use a minutes cutoff rather than a games played cutoff.  This will better account for good players that got injured that played fewer games. 12 minutes will be the cutoff and can always be changed to inlcude a 20 mpg cutoff.
+```{r}
+final_df_with_qs_g <- final_df_with_qs_g %>%
+  mutate_all(~ replace_na(., 0)) %>%
+  filter(G >= quant25)
+  
+final_df3 <- final_df_with_qs_g %>%
+  select(-c(min, quant25, quant50))
+
+
+```
+
+Given the data and the objective, it's likely helpful to use a minutes cutoff as well as a games played cutoff. 12 minutes will be the cutoff and can always be changed to include a 20 mpg cutoff.
 
 
 I'll look at minutes as well.
@@ -290,7 +299,7 @@ qs_mins_per_year <- final_df2 %>%
   print(n=40)
 ```
 
-```{r}
+```{r include = FALSE}
 # Above 12 mins per game or above 20 mins per game might be an appropriate cutoff.  12 mins is one quarter
 mean(qs_mins_per_year$quant25) #12.2
 mean(qs_mins_per_year$quant50) #19.7
@@ -298,10 +307,10 @@ mean(qs_mins_per_year$quant50) #19.7
 
 ```{r}
 #creates a new df
-final_df_with_qs_mpg <- left_join(final_df2, qs_mins_per_year[1:4], by ="Year")
+final_df_with_qs_mpg <- left_join(final_df3, qs_mins_per_year[1:4], by ="Year")
 ```
 
-```{r}
+```{r include = FALSE}
 final_df_with_qs_mpg %>%
   filter(MP_pg >= 12) %>%
  summarize(count = n())
@@ -321,9 +330,13 @@ final_df_with_qs_mpg %>%
   filter(MP_pg >= 20) %>%
   summarise(sum(is.na(.)))
   
+```
+
+```{r}
 final_df_with_qs_mpg <- final_df_with_qs_mpg %>%
   mutate_all(~ replace_na(., 0))
 ```
+
 
 ```{r}
 cutoff_df <- final_df_with_qs_mpg %>%
