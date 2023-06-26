@@ -78,7 +78,7 @@ The plots below showcase the makeup of each cluster.
 
 I've included a new position name for each cluster, a summary of each position (aka cluster), and listed some of the players from the 2022 season that fall into each position.
 
-# Function for plotting all the clusters
+## Function for plotting all the clusters
 ```{r}
 cluster_plots <- function(cluster_value) {
   
@@ -175,6 +175,14 @@ cluster_plots <- function(cluster_value) {
 ```
 
 ## Cluster 1
+MVP Bigs
+* In 2022, there were 20 players in this cluster, ~5% - the smallest cluster
++ Notable players include: Anthony Davis, Deandre Ayton, Kristaps Porzingis, Rudy Gobert, Domantas Sabonis, Bam Adebayo
++ These players are predominately centers with some power forwards sprinkled in
+* They rank first or second in ~60% of the stats, ranking second in ~45% of the stats and rank second to last or last in ~5%
+* They’re first or second in almost all rebounding and blocking stats.  They’re second in many of the advanced stats including PER, Win Share, and VORP.  They play the second most points and score the second most points.  They take a lot of two point shoots and shoot a lot of free throws
+* They only have lower ranks in a few stats.  They turn the ball over a lot and they foul a lot.  They have the shortest field goal distance, which isn’t a bad thing, it just means they shoot close to the basket.  
+
 ```{r}
 cluster_plots('Cluster 1')
 ```
@@ -209,7 +217,7 @@ cluster_plots('Cluster 6')
 cluster_plots('Cluster 7')
 ```
 
-```{r}
+```{r include = FALSE}
 
 df_2022 %>%
   filter(Cluster == 7) %>%
@@ -223,17 +231,18 @@ df_2022 %>%
 ```
 
 
+
 # Analysis of 2022 Players
 ## Historical and Current Cluster Analysis
 The below plot shows how the player types have evolved since the 2000-2001 season and a brief summary of each cluster is included.
 
-* Rebound Kings have generally decreased over the years, peaking around 12% in 2003, 2009, and 2010, but currently only make up 5% of players in the league..
-* 3-point Threats have increased significantly over the years, making up 42% of players in the league.  The percentage has almost quadrupled from 11% in 2001.
-* Game Lieutenants have remained somewhat consistent, generally between 15%-25%.
-* Bigmen Shooters have decreased from 27% in 2001 to only 6.2% in 2022.  It's likely that some of these players have become 3-point Threats
-* Bench Support has remained relatively constant, which makes sense since bench players are always needed
-* Primetime Bigs have remained relatively constant, fluctuateing between 7% and 12%
-* Superstars have also remained constant, but low, generally between 4% and 9%.  These players are valuable and hard to come by
+* MVP Bigs: Started to taper off in 2017.  Went from about 8%-11% down to about 5%-6%.  This position is most related to the traditional center role, which has significantly evolved over the years.  More centers are taking threes and shooting the ball rather than playing in the post.
+* 3-Point Backups: was generally between 17% and 23%, but then dropped to 12% and 13% in 2021 and 2022.  Some of these players likely became 3-Point Threats or Shooting Bigs in these years.
+* Game Generals:  Fairly consistent over the years, ranging between 16%-24% without any significant increases of decreases.  It's actually the same in 2022 as it was in 2001 - 16%
+* 3-Point Threats:  This position has shown the most dramatic increase - it was 6.4% in 2004 and 41% in 2022.  The 3-point shot is a huge part of the game today.
+* Shooting Bigs:  This position has shown the most dramatic decrease - it was 28% in 2001 and fell to 2.5% in 2020.  A lot of these players have likely become 3-Point Threats.
+* Franchise Players:  These players have always been part of the game, generally around 5%-9%.
+* Rebounding Bigs:  These players have also generally been past of the game, ranging around 6% to 13%.
 
 ```{r fig.width = 16, fig.height = 10}
 ggplot(final_df %>% mutate(Year = as.numeric(Year)),
@@ -249,154 +258,84 @@ ggplot(final_df %>% mutate(Year = as.numeric(Year)),
   scale_x_continuous("Year", breaks=seq(2001,2022,by=1)) +
   scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
-  scale_fill_discrete(name = "Player\nType", labels =c('Rebound\nKings', '3-point\nThreats', 'Game\nLieutenants', 'Bigmen\nShooters','Bench\nSupport', 'Primetime\nBigs', 'Superstars')) +
+  scale_fill_discrete(name = "Player\nType", labels =c('MVP Bigs', '3-Point\nBackups', 'Game\nGenerals', '3-Point\nThreats','Shooting\nBigs', 'Franchise\nPlayers', 'Rebounding\nBigs')) +
   theme(legend.key.height=unit(1, "cm"))
 ```
 
+## Count of Traditional Position in Each New Player Type - 2022
 The plot below displays the count of each traditional player position (C, PF, SF, SG, PG) within each of the new clusters (i.e. new player types).
 
-1. Rebound Kings
-2. 3-point Threats
-3. Game Lieutenants
-4. Bigmen Shooters
-5. Bench Support
-6. Primetime Bigs
-7. Superstars
+1. MVP Bigs
+2. 3-point Backups
+3. Game Generals
+4. 3-point Threats
+5. Shooting Bigs
+6. Franchise Players
+7. Rebounding Bigs
 
-* Of the seven new player types, 3-point Threats and Superstars include players from all 5 traditional positions.
-* Bench Support and Game Lieutenants include players from all 5 as well, but only have 1 player in some of the positions
-* Rebound Kings and Primetime Bigs are primarily traditional Centers and Power Forwards
+* Of the seven new player types, four have players from each traditional position - 3-point Backups, Game Generals, 3-point Threats, and Franchise Players.  However, 3-point Backups and Game Generals only have 1 center each.
+* MVP Bigs and Rebounding Bigs only have Power Forwards and Centers with the exception of Rebounding Bigs, which includes one shooting guard.
 
 ```{r}
 ggplot(final_df %>% 
          mutate(Year = as.numeric(Year),
                 Cluster = as.numeric(Cluster)) %>%
          filter(Year == 2022),
-       aes(y = Cluster, fill = Pos)) +
-  geom_bar(aes(x = (..count..)),colour="white") +
+       aes(x = Cluster, fill = Pos)) +
+  geom_bar(aes(y = (..count..)),colour="white") +
   geom_text(stat='count', aes(label=..count..),position = position_stack(vjust = 0.5), color = "black") +
   ggtitle("Count of Traditional Position in Each New Player Type - 2022") +
   theme(plot.title = element_text(hjust = 0.5)) +
-  scale_y_continuous(name="Cluster", breaks = c(1,2,3,4,5,6,7)) +
-  labs(fill = "Traditional\nPosition", x = "Count") +
+  scale_x_continuous(name = "New Position Name", breaks = c(1, 2, 3, 4, 5, 6, 7),
+                     labels = c('MVP Bigs', '3-Point\nBackups', 'Game\nGenerals', '3-Point\nThreats', 'Shooting\nBigs', 'Franchise\nPlayers', 'Rebounding\nBigs')) +
+  labs(fill = "Traditional Position", y = "Count") +
   theme(legend.key.height=unit(2, "cm"))
 ```
 
-# Function for plotting all the clusters
+## Percentage of Cluster within Each Traditional Position - 2022
 ```{r}
-cluster_plots <- function(cluster_value) {
-  
-  # Geom_point for rankings in each category
-  filtered_data <- kmeans_centers %>%
-    group_by(feature) %>%
-    mutate(rank = ifelse(as.character(feature) %in% c('PF_pg', 'PF_pp', 'TOV_pg', 'TOV_pp', 'TOV_pct_adv'), 
-                         rank(center), 
-                         rank(desc(center)))
-    )%>% # adjust rank for high values in less desriable stat categories
-    arrange(case_when(Cluster == cluster_value ~ 1, TRUE ~ 2), Cluster, rank, desc(center)) %>%
-    mutate(Cluster = as.character(Cluster)) %>%
-    filter(Cluster == cluster_value)
-  
-  plot <- kmeans_centers %>%
-    group_by(feature) %>%
-    mutate(rank = ifelse(as.character(feature) %in% c('PF_pg', 'PF_pp', 'TOV_pg', 'TOV_pp', 'TOV_pct_adv'), 
-                         rank(center), 
-                         rank(desc(center)))
-    )%>% # adjust rank for high values in less desriable stat categories
-    arrange(case_when(Cluster == cluster_value ~ 1, TRUE ~ 2), Cluster, rank, desc(center)) %>%
-    ggplot(aes(x = factor(feature, levels = unique(feature)), y = center, color = cluster_value)) +
-    geom_point(color = "#5A2D81") +
-    geom_text(data = filtered_data, aes(label = rank), color = "black", vjust = -0.5) +  # Add point labels for rank
-    theme_minimal() +
-    gghighlight(Cluster == cluster_value, use_direct_label = FALSE) +
-    theme(legend.position = "none",
-          axis.text.x = element_text(angle = 90, size = 9, hjust = 0.5),
-          axis.title = element_text(hjust = 0.5),
-          plot.title = element_text(hjust = 0.5),
-          plot.subtitle = element_text(hjust = 0.5)) +
-    labs(x = "Statistic", y = "Cluster Center",
-         title = "Visualizing K-Means Cluster Makeups",
-         subtitle = cluster_value)
-  
-  print(plot)
-  
-  
-  # Bar Plot for Percentage of Stat Categories in Each Rank
-  filtered_data <- kmeans_centers %>%
-    group_by(feature) %>%
-    mutate(rank = ifelse(as.character(feature) %in% c('PF_pg', 'PF_pp', 'TOV_pg', 'TOV_pp', 'TOV_pct_adv'), 
-                         rank(center), 
-                         rank(desc(center)))
-    ) %>%
-    arrange(case_when(Cluster == cluster_value ~ 1, TRUE ~ 2), Cluster, rank, desc(center)) %>%
-    mutate(Cluster = as.character(Cluster)) %>%
-    filter(Cluster == cluster_value)
-  
-  plot <- kmeans_centers %>%
-    group_by(feature) %>%
-    mutate(rank = ifelse(as.character(feature) %in% c('PF_pg', 'PF_pp', 'TOV_pg', 'TOV_pp', 'TOV_pct_adv'), 
-                         rank(center), 
-                         rank(desc(center)))
-    ) %>%
-    ungroup() %>%
-    select(Cluster, rank) %>%
-    group_by(Cluster, rank) %>%
-    summarise(count = n()) %>%
-    ungroup() %>%
-    group_by(Cluster) %>%
-    mutate(percentage = count / sum(count) * 100) %>%
-    filter(Cluster == cluster_value) %>%
-    ggplot(aes(x = as.factor(rank), y = percentage, fill = as.factor(rank))) +
-    geom_bar(stat = "identity") +
-    geom_text(aes(label = paste0(round(percentage, 0), "%")), vjust = -0.5, color = "black") +
-    labs(x = "Rank", y = "Percentage",
-         title = "Percentage of Stat Categories in Each Rank", subtitle = cluster_value) +
-    scale_fill_discrete(name = "Rank") +
-    scale_x_discrete(limits = as.character(1:7)) +
-    theme_minimal()
-  
-  print(plot)
-  
-  #Bar plot that shows count of traditional positions in each cluster
-  df_2022 <- final_df %>%
-    filter(Year %in% '2022')
-  
-  count_df <- df_2022 %>%
-    filter(Cluster == substr(cluster_value, nchar(cluster_value), nchar(cluster_value))) %>%
-    group_by(Pos) %>%
-    summarise(count = n()) %>%
-    ungroup() %>%
-    arrange(desc(count))
-  
-  plot <- ggplot(count_df, aes(x = reorder(Pos, -count), y = count, fill = Pos)) +
-    geom_bar(stat = "identity") +
-    geom_text(aes(label = count), vjust = -0.5, color = "black") +
-    scale_fill_manual(values = c("red", "blue", "green", "yellow", "orange")) +
-    labs(x = "Pos", y = "Count", title = paste0("Bar Plot of Traditional Positions in ", cluster_value))
-  
-  print(plot)
-}
-```
 
-```{r}
-cluster_plots('Cluster 1')
-```
+dat <- final_df %>% filter(Year ==2022) 
+dat1 <- as.data.frame(prop.table(table(dat$Pos, dat$Cluster), margin = 1))
+colnames(dat1) <- c("Pos", "Cluster", "percent")
 
+dat1 <- dat1 %>% 
+  group_by(Pos) %>% 
+  mutate(Pos_label_y = 1 - (cumsum(percent) - 0.5 * percent)) %>% 
+  ungroup()
+
+ggplot(dat1, aes(Pos, y = percent, fill = factor(Cluster))) +
+  geom_bar(data = . %>% filter(percent > 0), position = "fill", stat = "identity") +
+  scale_y_continuous(labels = scales::percent) +
+  geom_text(data = . %>% filter(percent > 0), aes(y = Pos_label_y, label = round(100 * percent, 1))) +
+  ggtitle("Percentage of Cluster within Each Traditional Position - 2022") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  scale_x_discrete(name = "Traditional Position") +
+  scale_fill_discrete(name = "New Position Name", labels = c('MVP Bigs', '3-Point\nBackups', 'Game\nGenerals', '3-Point\nThreats', 'Shooting\nBigs', 'Franchise\nPlayers', 'Rebounding\nBigs')) +
+  ylab("Percentage") +
+  theme(strip.background = element_blank(),
+        strip.text = element_blank(),
+        legend.key.height = unit(1, "cm"))
+
+
+
+
+```
 
 
 
 ```{r include = FALSE}
-df_2022 <- df_2022 %>%
+df_2022 <- final_df %>%
+  filter(Year == "2022") %>%
   mutate(Tm =ifelse(Player =='Aaron Holiday', gsub('TOT','PHO',Tm),Tm)) %>%
   mutate(Tm =ifelse(Player =='Andre Drummond', gsub('TOT','BRK',Tm),Tm)) %>%
   mutate(Tm =ifelse(Player =='Armoni Brooks', gsub('TOT','TOR',Tm),Tm)) %>%
-  mutate(Tm =ifelse(Player =='Brad Wanamaker', gsub('TOT','WAS',Tm),Tm)) %>%
+  mutate(Tm =ifelse(Player =='Brad Wanamaker', gsub('TOT','IND',Tm),Tm)) %>%
   mutate(Tm =ifelse(Player =='Bryn Forbes', gsub('TOT','DEN',Tm),Tm)) %>%
   mutate(Tm =ifelse(Player =='Buddy Hield', gsub('TOT','IND',Tm),Tm)) %>%
-  mutate(Tm =ifelse(Player =='Cam Reddish', gsub('TOT','NYK',Tm),Tm)) %>%
+  mutate(Tm =ifelse(Player =='Cam Reddish', gsub('TOT','NY',Tm),Tm)) %>%
   mutate(Tm =ifelse(Player =='Caris LeVert', gsub('TOT','CLE',Tm),Tm)) %>%
   mutate(Tm =ifelse(Player =='CJ McCollum', gsub('TOT','NOP',Tm),Tm)) %>%
-  mutate(Tm =ifelse(Player =='DJ Augustin', gsub('TOT','LAL',Tm),Tm)) %>%
   mutate(Tm =ifelse(Player =='Daniel Theis', gsub('TOT','BOS',Tm),Tm)) %>%
   mutate(Tm =ifelse(Player =='Danuel House Jr', gsub('TOT','UTA',Tm),Tm)) %>%
   mutate(Tm =ifelse(Player =='Davis Bertans', gsub('TOT','DAL',Tm),Tm)) %>%
@@ -405,6 +344,7 @@ df_2022 <- df_2022 %>%
   mutate(Tm =ifelse(Player =='DeMarcus Cousins', gsub('TOT','DEN',Tm),Tm)) %>%
   mutate(Tm =ifelse(Player =='Dennis Schroder', gsub('TOT','HOU',Tm),Tm)) %>%
   mutate(Tm =ifelse(Player =='Derrick White', gsub('TOT','BOS',Tm),Tm)) %>%
+  mutate(Tm =ifelse(Player =='DJ Augustin', gsub('TOT','LAL',Tm),Tm)) %>%
   mutate(Tm =ifelse(Player =='Domantas Sabonis', gsub('TOT','SAC',Tm),Tm)) %>%
   mutate(Tm =ifelse(Player =='Donte DiVincenzo', gsub('TOT','SAC',Tm),Tm)) %>%
   mutate(Tm =ifelse(Player =='Drew Eubanks', gsub('TOT','POR',Tm),Tm)) %>%
@@ -414,13 +354,11 @@ df_2022 <- df_2022 %>%
   mutate(Tm =ifelse(Player =='Ish Smith', gsub('TOT','WAS',Tm),Tm)) %>%
   mutate(Tm =ifelse(Player =='Jalen Smith', gsub('TOT','IND',Tm),Tm)) %>%
   mutate(Tm =ifelse(Player =='James Harden', gsub('TOT','PHI',Tm),Tm)) %>%
-  mutate(Tm =ifelse(Player =='Javonte Smart', gsub('TOT','MIA',Tm),Tm)) %>%
   mutate(Tm =ifelse(Player =='Jeremy Lamb', gsub('TOT','SAC',Tm),Tm)) %>%
   mutate(Tm =ifelse(Player =='Jevon Carter', gsub('TOT','MIL',Tm),Tm)) %>%
   mutate(Tm =ifelse(Player =='Josh Hart', gsub('TOT','POR',Tm),Tm)) %>%
   mutate(Tm =ifelse(Player =='Josh Jackson', gsub('TOT','SAC',Tm),Tm)) %>%
   mutate(Tm =ifelse(Player =='Josh Richardson', gsub('TOT','SAS',Tm),Tm)) %>%
-  mutate(Tm =ifelse(Player =='Juancho Hernangomez', gsub('TOT','UTA',Tm),Tm)) %>%
   mutate(Tm =ifelse(Player =='Justin Holiday', gsub('TOT','SAC',Tm),Tm)) %>%
   mutate(Tm =ifelse(Player =='Justin Robinson', gsub('TOT','DET',Tm),Tm)) %>%
   mutate(Tm =ifelse(Player =='Justise Winslow', gsub('TOT','POR',Tm),Tm)) %>%
@@ -429,13 +367,11 @@ df_2022 <- df_2022 %>%
   mutate(Tm =ifelse(Player =='Kristaps Porzingis', gsub('TOT','WAS',Tm),Tm)) %>%
   mutate(Tm =ifelse(Player =='Lance Stephenson', gsub('TOT','IND',Tm),Tm)) %>%
   mutate(Tm =ifelse(Player =='Larry Nance Jr', gsub('TOT','NOP',Tm),Tm)) %>%
-  mutate(Tm =ifelse(Player =='Malcolm Hill', gsub('TOT','CHI',Tm),Tm)) %>%
   mutate(Tm =ifelse(Player =='Marvin Bagley III', gsub('TOT','DET',Tm),Tm)) %>%
   mutate(Tm =ifelse(Player =='Montrezl Harrell', gsub('TOT','CHO',Tm),Tm)) %>%
   mutate(Tm =ifelse(Player =='Mychal Mulder', gsub('TOT','MIA',Tm),Tm)) %>%
-  mutate(Tm =ifelse(Player =='Nickeil AlexanderWalker', gsub('TOT','UTA',Tm),Tm)) %>%
+  mutate(Tm =ifelse(Player =='Nickeil Alexander Walker', gsub('TOT','UTA',Tm),Tm)) %>%
   mutate(Tm =ifelse(Player =='Norman Powell', gsub('TOT','LAC',Tm),Tm)) %>%
-  mutate(Tm =ifelse(Player =='Paul Millsap', gsub('TOT','PHI',Tm),Tm)) %>%
   mutate(Tm =ifelse(Player =='Rajon Rondo', gsub('TOT','CLE',Tm),Tm)) %>%
   mutate(Tm =ifelse(Player =='Robert Covington', gsub('TOT','LAC',Tm),Tm)) %>%
   mutate(Tm =ifelse(Player =='Rodney Hood', gsub('TOT','LAC',Tm),Tm)) %>%
@@ -452,11 +388,11 @@ df_2022 <- df_2022 %>%
   mutate(Tm =ifelse(Player =='Tristan Thompson', gsub('TOT','CHI',Tm),Tm)) %>%
   mutate(Tm =ifelse(Player =='Tyrese Haliburton', gsub('TOT','IND',Tm),Tm)) %>%
   mutate(Tm =ifelse(Player =='Wenyen Gabriel', gsub('TOT','LAL',Tm),Tm)) %>%
-  mutate(Tm =ifelse(Player =='Braxton Key', gsub('TOT','DET',Tm),Tm)) %>%
-  mutate(Tm =ifelse(Player =='Braxton Key', gsub('TOT','DET',Tm),Tm)) %>%
+  mutate(Tm =ifelse(Tm =='NYK', gsub('NYK','NY',Tm),Tm))
+
 ```
 
-
+## Count of New Position on Each Team - 2022
 ```{r fig.width = 14}
 #teams by cluster
 ggplot(df_2022 %>% 
@@ -464,14 +400,50 @@ ggplot(df_2022 %>%
                 Cluster = as.numeric(Cluster)) %>%
          filter(Year == 2022),
        aes(x = Tm, fill = factor(Cluster))) +
-  geom_bar(position = "fill") + ylab("proportion") +
+  ggtitle("Count of New Position on Each Team - 2022") +
+  geom_bar(position = "fill") + ylab("Proportion") +
   stat_count(geom = "text", 
              aes(label = stat(count)),
              position=position_fill(vjust=0.5), colour="white") +
-    scale_fill_discrete(name = "Player\nType", labels =c('Rebound\nKings', '3-point\nThreats', 'Game\nLieutenants', 'Bigmen\nShooters','Bench\nSupport', 'Primetime\nBigs', 'Superstars')) +
+    scale_fill_discrete(name = "New Position", labels =c('MVP Bigs', '3-Point\nBackups', 'Game\nGenerals', '3-Point\nThreats', 'Shooting\nBigs', 'Franchise\nPlayers', 'Rebounding\nBigs')) +
   theme(legend.key.height=unit(1, "cm"))
 ```
+## Count of New Position on Each Team Above and below .500- 2022
 ```{r}
-df_2022 %>% filter(Tm == 'TOT')
+above500_2022 <- c('PHO','MEM','MIA','GSW','DAL','BOS','MIL','PHI','UTA','TOR','DEN','MIN','CHI','BRK','CLE','ATL','CHO','LAC')
+
+ggplot(data = df_2022 %>% filter(Tm %in% above500_2022), aes(x = Tm, fill = factor(Cluster))) +
+  geom_bar(position = "fill") + ylab("Proportion by Count") +
+  stat_count(geom = "text", 
+             aes(label = stat(count)),
+             position=position_fill(vjust=0.5), colour="Black") +
+      scale_fill_discrete(name = "New Position", labels =c('MVP Bigs', '3-Point\nBackups', 'Game\nGenerals', '3-Point\nThreats', 'Shooting\nBigs', 'Franchise\nPlayers', 'Rebounding\nBigs'))  +
+  theme(legend.key.height=unit(1, "cm"))
+
 ```
+### Takeaways
+* Each team with a record above .500 had at least 1 Franchise Player.
+* Boston, Brooklyn, Chicago, Milwaukee, Philadelphia, and Phoenix had 2 Franchise Players
+* Boston, Dallas, Denver, Golden State, LA Clippers, Minnesota, and Philadelphia didn't have an MVP Big
+* Cleveland had 2 MVP Bigs
+
+
+## Count of New Position on Each Team Bwloq .500- 2022
+```{r}
+
+below500_2022 <- c('NYK','NOP','WAS','SAS','LAL','SAC','POR','IND','OKC','DET','ORL','HOU')
+ggplot(data = df_2022 %>% filter(Tm %in% below500_2022), aes(x = Tm, fill = factor(Cluster))) +
+  geom_bar(position = "fill") + ylab("Proportion by Count") +
+  stat_count(geom = "text", 
+             aes(label = stat(count)),
+             position=position_fill(vjust=0.5), colour="Black") +
+      scale_fill_discrete(name = "New Position", labels =c('MVP Bigs', '3-Point\nBackups', 'Game\nGenerals', '3-Point\nThreats', 'Shooting\nBigs', 'Franchise\nPlayers', 'Rebounding\nBigs'))  +
+  theme(legend.key.height=unit(1, "cm"))
+```
+### Takeaways
+* 5 of the 11 Teams with a record below .500 didn't have a Franchise Player.
+* Of the 5, Detroit and Indiana didn't have an MVP Big.
+
+# Conclusion and Next Steps
+Further analysis needs to be done to determine which player types are included on successful teams.  This analysis will be used to help determine what kind of players to target so that a team can be successful.
 
