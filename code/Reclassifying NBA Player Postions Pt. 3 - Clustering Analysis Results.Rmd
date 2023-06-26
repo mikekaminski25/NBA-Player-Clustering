@@ -46,14 +46,15 @@ nba_clust <- kmeans(model_df %>% select(-c(1:4)),
 
 ```{r warning=TRUE}
 # head(augment(nba_clust, model_df))[, c(80,1:9)],5) 
-warnings()
-nba_aug <- augment(nba_clust, model_df) %>% 
-  rename(Cluster = .cluster) %>%
-  select(-c(1:4)) %>%
-  select(Cluster, everything()) 
-nba_aug
+nba_aug <- broom::augment(nba_clust, model_df) 
 
-warnings()
+# %>% 
+#   rename(Cluster = .cluster) %>%
+#   select(-c(1:4)) %>%
+#   select(Cluster, everything()) 
+# nba_aug
+
+
 ```
 
 # Create a Dataframe for Plotting Results
@@ -65,13 +66,13 @@ kmeans_centers <- data.frame(Cluster = c(paste0('Cluster ', 1:7)), nba_clust$cen
   mutate(Cluster = as.factor(Cluster))
 head(kmeans_centers)
 
-# final_df <- model_df %>%
-#   select(c(1:4)) %>%
-#   cbind(nba_aug) %>%
-#   mutate(Cluster = as.character(Cluster))
-# 
-# df_2022 <- final_df %>%
-#   filter(Year %in% '2022')
+final_df <- model_df %>%
+  select(c(1:4)) %>%
+  cbind(nba_aug) %>%
+  mutate(Cluster = as.character(Cluster))
+
+df_2022 <- final_df %>%
+  filter(Year %in% '2022')
 ```
 
 The plots below showcase the makeup of each cluster. 
