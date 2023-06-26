@@ -46,14 +46,10 @@ nba_clust <- kmeans(model_df %>% select(-c(1:4)),
 
 ```{r warning=TRUE}
 # head(augment(nba_clust, model_df))[, c(80,1:9)],5) 
-nba_aug <- broom::augment(nba_clust, model_df) 
-
-# %>% 
-#   rename(Cluster = .cluster) %>%
-#   select(-c(1:4)) %>%
-#   select(Cluster, everything()) 
-# nba_aug
-
+nba_aug <- broom::augment(nba_clust, model_df)  %>%
+  rename(Cluster = .cluster) %>%
+  select(-c(1:4)) %>%
+  select(Cluster, everything())
 
 ```
 
@@ -186,11 +182,10 @@ cluster_plots <- function(cluster_value) {
 }
 ```
 
-## Cluster 1
-MVP Bigs
+## Cluster 1: MVP Bigs
 * In 2022, there were 20 players in this cluster, ~5% - the smallest cluster
-+ Notable players include: Anthony Davis, Deandre Ayton, Kristaps Porzingis, Rudy Gobert, Domantas Sabonis, Bam Adebayo
-+ These players are predominately centers with some power forwards sprinkled in
+  + Notable players include: Anthony Davis, Deandre Ayton, Kristaps Porzingis, Rudy Gobert, Domantas Sabonis, Bam Adebayo
+  + These players are predominately centers with some power forwards sprinkled in
 * They rank first or second in ~60% of the stats, ranking second in ~45% of the stats and rank second to last or last in ~5%
 * They’re first or second in almost all rebounding and blocking stats.  They’re second in many of the advanced stats including PER, Win Share, and VORP.  They play the second most points and score the second most points.  They take a lot of two point shoots and shoot a lot of free throws
 * They only have lower ranks in a few stats.  They turn the ball over a lot and they foul a lot.  They have the shortest field goal distance, which isn’t a bad thing, it just means they shoot close to the basket.  
@@ -199,32 +194,74 @@ MVP Bigs
 cluster_plots('Cluster 1')
 ```
 
-## Cluster 2
+## Cluster 2: 3-Point Backups
+* In 2022, there were 52 players in this cluster, ~13%
+  + Notable players include: Aaron Holiday, Donte DiVincenzo, Kent Bazemore, Lou Williams, Rajon Rondo
+  + 40 of the 52 are guards – with 26 being point guards, there are 11 forwards, and the lone center is Killian Tillie
+* They rank first or second in only ~10% of the stats and rank second to last or last in ~65%, with ~45% being last.
+* They’re first or second in only a few stats.  They have the highest percentage of shots from 16 feet and beyond and least amount of fouls per game.  They have the highest defensive rating(opponent’s points while player is on the floor), but that’s likely due to them playing the least amount of minutes.  They’re second in a few other 3-point shooting categories.
+* They rank the lowest in many stats – minutes, points, rebounds, blocks, shots, and free throws.  They’re last in many of the advanced stats as well – PER, BPM, VORP, Win Share.
+
 ```{r}
 cluster_plots('Cluster 2')
 ```
 
-## Cluster 3
+## Cluster 3: Game Generals
+* In 2022, there were 62 players in this cluster, ~16%
+  + Notable players include: CJ McCollum, Derrick Rose, Fred VanVleet, , Klay Thompson, Marcus Smart, Russell Westbrook
+  + 41 of the 62 are guards – with 22 being point guards, there are 20 forwards, and the lone center is Kelly Olynyk
+* They don’t rank first in any stats and are rank second in 15%.  The only rank second to last or last in 20%, meaning that the majority of their rankings are right in the middle – with 37% ranked third
+* They’re strongest in the assist, steal, and 3-point stats.  They play the third most minutes and score the third most points.  They take command in each game on both the offensive and defensive side and shoot the ball well
+* They don’t get a lot of blocks or rebounds or take shots close to the basket.  They commit a lot of turnovers.
+
 ```{r}
 cluster_plots('Cluster 3')
 ```
 
-## Cluster 4
+## Cluster 4: 3-Point Threats
+* In 2022, there were 161 players in this cluster, ~41%, by far the largest cluster.
+  + Notable players include: Alex Caruso, Blake Griffin, Carmelo Anthony, Duncan Robinson, Evan Fournier, Jae Crowder
+  + 53 are shooting guards, 44 are small forwards, 37 are power forwards, 18 are point guards, and 9 are centers.  It’s truly a big mix of players.
+* They rank first or second in 20%, ranking first in 16%.  They rank second to last or last in 30%
+* They’re first in many of the 3-point stats and turnover stats.  When they shoot, they shoot threes.
+* They don’t take 2 point shoots, get rebounds or shoot free throws
+
 ```{r}
 cluster_plots('Cluster 4')
 ```
 
-## Cluster 5
+## Cluster 5: Shooting Bigs
+* In 2022, there were 22 players, ~6%
+  + Notable players include: DeMarcus Cousins, Derrick Favors, Robin Lopez, Serge Ibaka
+  + the majority are centers (10) and power forwards (7), with the lone shooting guard being Hamidou Diallo
+* They rank first or second in 6% and second to last or last in~40%, ranking first and last in only one stat category
+* They have a good jump shot.  Most of their shots are taken between 10-16 feet and most of their shots are assisted.  They don’t typically create shots, but rather serve as an outlet for players driving the lane.
+* They don’t play a lot of minutes, score points, or get steals and assists.  They have low win share and BPM values.
+
 ```{r}
 cluster_plots('Cluster 5')
 ```
 
-## Cluster 6
+## Cluster 6: Franchise Players
+* In 2022, there were 32 players, ~8%
+  + Notable players include: Chris Paul, Giannis Antetokounmpo, James Harden, Joel Embiid, Kevin Durant, Nikola Jokic, LeBron James, Luka Doncic, Stephen Curry
+  + the majority are point guards(13), but there’s a mix of each position.
+* They rank first in 43% and second in 13% (56% total).  They rank second to last or last in only 5%.
+* These players do it all.  These are your all-stars, your future hall of famers, your Finals MVPs.  You build a team around these players.
+* The only down side is that they commit a lot of turnovers.
+
 ```{r}
 cluster_plots('Cluster 6')
 ```
 
-## Cluster 7
+## Cluster 7: Rebounding Bigs
+* In 2022, there were 43 players, ~11%
+  + Notable players include: Andre Drummond, Draymond Green, JaVale McGee, Steven Adams, Tristan Thompson
+  + 33 of the 43 are centers, with the lone shooting guard being Terry Taylor
+* They rank first or second in ~35%, but second to last or last in 38%
+* They’re first in rebounding and block stats.  They have the highest field goal percentage and take the majority of their shots between 0-3 feet.
+* They don’t get a lot of points, steals, or assists.  They commit a lot of fouls and turnovers, they don’t shot often, and almost never take threes.
+
 ```{r}
 cluster_plots('Cluster 7')
 ```
@@ -420,7 +457,7 @@ ggplot(df_2022 %>%
     scale_fill_discrete(name = "New Position", labels =c('MVP Bigs', '3-Point\nBackups', 'Game\nGenerals', '3-Point\nThreats', 'Shooting\nBigs', 'Franchise\nPlayers', 'Rebounding\nBigs')) +
   theme(legend.key.height=unit(1, "cm"))
 ```
-## Count of New Position on Each Team Above and below .500- 2022
+## Count of New Position on Each Team Above .500- 2022
 ```{r}
 above500_2022 <- c('PHO','MEM','MIA','GSW','DAL','BOS','MIL','PHI','UTA','TOR','DEN','MIN','CHI','BRK','CLE','ATL','CHO','LAC')
 
@@ -440,7 +477,7 @@ ggplot(data = df_2022 %>% filter(Tm %in% above500_2022), aes(x = Tm, fill = fact
 * Cleveland had 2 MVP Bigs
 
 
-## Count of New Position on Each Team Bwloq .500- 2022
+## Count of New Position on Each Team Below .500- 2022
 ```{r}
 
 below500_2022 <- c('NYK','NOP','WAS','SAS','LAL','SAC','POR','IND','OKC','DET','ORL','HOU')
