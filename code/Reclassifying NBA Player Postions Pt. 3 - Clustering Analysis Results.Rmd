@@ -1,10 +1,12 @@
 ---
-title: "Reclassifying NBA Player Postions Pt. 3 - Clustering Analysis Results"
+title: "NBA Player Segmentation Pt. 3 - Clustering Analysis Results"
 author: "Mike Kaminski"
 date: "2023-06-23"
-output:
-  html_document: default
-  pdf_document: default
+output: 
+  html_document: 
+    theme: cerulean
+    toc: yes
+    toc_float: yes
 ---
 
 ```{r setup, include=FALSE}
@@ -15,7 +17,7 @@ knitr::opts_chunk$set(echo = TRUE, cache = TRUE, warning = FALSE,
 knitr::opts_knit$set(root.dir = "C:/Users/mikek/Documents/NBA-Player-Clustering")
 ```
 
-# Libraries
+# Libraries and Reading Data
 ```{r libraries}
 library(tidymodels) # broom, dials, parsnip, tune, workflows, yardstick
 library(tidyverse) #ggplot2, dplyr, tidyr, readr, purr, tibble, stringr, lubridate
@@ -23,7 +25,6 @@ library(gghighlight)
 
 ```
 
-# Read in the Data
 ```{r Read_Data}
 NBACleanData <- read_csv("Data/model0623.csv",show_col_types = FALSE) %>% select(-1)
 model_df <-  NBACleanData %>% select(-80) %>%
@@ -33,14 +34,14 @@ model_df <-  NBACleanData %>% select(-80) %>%
 
 From Pt.2 of the project, I decided to use 7 clusters.  Using PCA didn't really provide improved results in the dataset, plus I need to be able to explain the results in a concise format.  Therefore, I've opted to not use PCA to reduce dimensionality.  I've also decided to use kmeans over hierarchical, as I think it will be a little bit easier to interpret.
 
-# Modeling
+# Modeling - K-Means w/o PCA
 From the last part, here is the model
 ```{r Model}
 set.seed(1234)
 
 nba_clust <- kmeans(model_df %>% select(-c(1:4)),
-                    iter.max = 500 , 
-                    nstart = 100 ,
+                    iter.max = 1, 
+                    nstart = 10 ,
                     centers = 7)
 ```
 
@@ -53,7 +54,8 @@ nba_aug <- broom::augment(nba_clust, model_df)  %>%
 
 ```
 
-# Create a Dataframe for Plotting Results
+# Analysis - All Data
+## Create a Dataframe for Plotting Results
 ```{r dataframe}
 options(scipen = 99)
 kmeans_centers <- data.frame(Cluster = c(paste0('Cluster ', 1:7)), nba_clust$centers) %>% #creates a column w/ the cluster name
@@ -85,7 +87,7 @@ The plots below showcase the makeup of each cluster.
 
 I've included a new position name for each cluster, a summary of each position (aka cluster), and listed some of the players from the 2022 season that fall into each position.
 
-## Function for plotting all the clusters
+## Plot Function for the Clusters
 ```{r}
 
 cluster_plots <- function(cluster_value) {
@@ -182,7 +184,9 @@ cluster_plots <- function(cluster_value) {
 }
 ```
 
-## Cluster 1: MVP Bigs
+## Cluster Breakdown Analysis
+
+### Cluster 1: MVP Bigs
 * In 2022, there were 20 players in this cluster, ~5% - the smallest cluster
   + Notable players include: Anthony Davis, Deandre Ayton, Kristaps Porzingis, Rudy Gobert, Domantas Sabonis, Bam Adebayo
   + These players are predominately centers with some power forwards sprinkled in
@@ -194,7 +198,7 @@ cluster_plots <- function(cluster_value) {
 cluster_plots('Cluster 1')
 ```
 
-## Cluster 2: 3-Point Backups
+### Cluster 2: 3-Point Backups
 * In 2022, there were 52 players in this cluster, ~13%
   + Notable players include: Aaron Holiday, Donte DiVincenzo, Kent Bazemore, Lou Williams, Rajon Rondo
   + 40 of the 52 are guards – with 26 being point guards, there are 11 forwards, and the lone center is Killian Tillie
@@ -206,7 +210,7 @@ cluster_plots('Cluster 1')
 cluster_plots('Cluster 2')
 ```
 
-## Cluster 3: Game Generals
+### Cluster 3: Game Generals
 * In 2022, there were 62 players in this cluster, ~16%
   + Notable players include: CJ McCollum, Derrick Rose, Fred VanVleet, , Klay Thompson, Marcus Smart, Russell Westbrook
   + 41 of the 62 are guards – with 22 being point guards, there are 20 forwards, and the lone center is Kelly Olynyk
@@ -218,7 +222,7 @@ cluster_plots('Cluster 2')
 cluster_plots('Cluster 3')
 ```
 
-## Cluster 4: 3-Point Threats
+### Cluster 4: 3-Point Threats
 * In 2022, there were 161 players in this cluster, ~41%, by far the largest cluster.
   + Notable players include: Alex Caruso, Blake Griffin, Carmelo Anthony, Duncan Robinson, Evan Fournier, Jae Crowder
   + 53 are shooting guards, 44 are small forwards, 37 are power forwards, 18 are point guards, and 9 are centers.  It’s truly a big mix of players.
@@ -230,7 +234,7 @@ cluster_plots('Cluster 3')
 cluster_plots('Cluster 4')
 ```
 
-## Cluster 5: Shooting Bigs
+### Cluster 5: Shooting Bigs
 * In 2022, there were 22 players, ~6%
   + Notable players include: DeMarcus Cousins, Derrick Favors, Robin Lopez, Serge Ibaka
   + the majority are centers (10) and power forwards (7), with the lone shooting guard being Hamidou Diallo
@@ -242,7 +246,7 @@ cluster_plots('Cluster 4')
 cluster_plots('Cluster 5')
 ```
 
-## Cluster 6: Franchise Players
+### Cluster 6: Franchise Players
 * In 2022, there were 32 players, ~8%
   + Notable players include: Chris Paul, Giannis Antetokounmpo, James Harden, Joel Embiid, Kevin Durant, Nikola Jokic, LeBron James, Luka Doncic, Stephen Curry
   + the majority are point guards(13), but there’s a mix of each position.
@@ -254,7 +258,7 @@ cluster_plots('Cluster 5')
 cluster_plots('Cluster 6')
 ```
 
-## Cluster 7: Rebounding Bigs
+### Cluster 7: Rebounding Bigs
 * In 2022, there were 43 players, ~11%
   + Notable players include: Andre Drummond, Draymond Green, JaVale McGee, Steven Adams, Tristan Thompson
   + 33 of the 43 are centers, with the lone shooting guard being Terry Taylor
@@ -281,8 +285,8 @@ df_2022 %>%
 
 
 
-# Analysis of 2022 Players
-## Historical and Current Cluster Analysis
+# Analysis -Historical and  2022 Players
+## History of Clusters
 The below plot shows how the player types have evolved since the 2000-2001 season and a brief summary of each cluster is included.
 
 * MVP Bigs: Started to taper off in 2017.  Went from about 8%-11% down to about 5%-6%.  This position is most related to the traditional center role, which has significantly evolved over the years.  More centers are taking threes and shooting the ball rather than playing in the post.
@@ -293,7 +297,7 @@ The below plot shows how the player types have evolved since the 2000-2001 seaso
 * Franchise Players:  These players have always been part of the game, generally around 5%-9%.
 * Rebounding Bigs:  These players have also generally been past of the game, ranging around 6% to 13%.
 
-```{r fig.width = 16, fig.height = 10}
+```{r fig.width = 20, fig.height = 14}
 ggplot(final_df %>% mutate(Year = as.numeric(Year)),
        aes(x=Year, 
            fill=factor(Cluster))
@@ -308,10 +312,10 @@ ggplot(final_df %>% mutate(Year = as.numeric(Year)),
   scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
   scale_fill_discrete(name = "Player\nType", labels =c('MVP Bigs', '3-Point\nBackups', 'Game\nGenerals', '3-Point\nThreats','Shooting\nBigs', 'Franchise\nPlayers', 'Rebounding\nBigs')) +
-  theme(legend.key.height=unit(1, "cm"))
+  theme(legend.key.height=unit(2, "cm"))
 ```
 
-## Count of Traditional Position in Each New Player Type - 2022
+## 2022 - Traditional Positions Vs New Positions - Counts
 The plot below displays the count of each traditional player position (C, PF, SF, SG, PG) within each of the new clusters (i.e. new player types).
 
 1. MVP Bigs
@@ -341,7 +345,7 @@ ggplot(final_df %>%
   theme(legend.key.height=unit(2, "cm"))
 ```
 
-## Percentage of Cluster within Each Traditional Position - 2022
+## 2022 - Traditional Positions Vs New Positions - Percentages
 ```{r}
 
 dat <- final_df %>% filter(Year ==2022) 
@@ -441,8 +445,8 @@ df_2022 <- final_df %>%
 
 ```
 
-## Count of New Position on Each Team - 2022
-```{r fig.width = 14}
+## 2022 - New Positions Per Team
+```{r fig.width = 20, fig.height = 14}
 #teams by cluster
 ggplot(df_2022 %>% 
          mutate(Year = as.numeric(Year),
@@ -457,8 +461,8 @@ ggplot(df_2022 %>%
     scale_fill_discrete(name = "New Position", labels =c('MVP Bigs', '3-Point\nBackups', 'Game\nGenerals', '3-Point\nThreats', 'Shooting\nBigs', 'Franchise\nPlayers', 'Rebounding\nBigs')) +
   theme(legend.key.height=unit(1, "cm"))
 ```
-## Count of New Position on Each Team Above .500- 2022
-```{r}
+## 2022 - New Positions Per Team - above .500
+```{r fig.width = 20, fig.height = 14}
 above500_2022 <- c('PHO','MEM','MIA','GSW','DAL','BOS','MIL','PHI','UTA','TOR','DEN','MIN','CHI','BRK','CLE','ATL','CHO','LAC')
 
 ggplot(data = df_2022 %>% filter(Tm %in% above500_2022), aes(x = Tm, fill = factor(Cluster))) +
@@ -477,7 +481,7 @@ ggplot(data = df_2022 %>% filter(Tm %in% above500_2022), aes(x = Tm, fill = fact
 * Cleveland had 2 MVP Bigs
 
 
-## Count of New Position on Each Team Below .500- 2022
+## 2022 - New Positions Per Team - below .500
 ```{r}
 
 below500_2022 <- c('NYK','NOP','WAS','SAS','LAL','SAC','POR','IND','OKC','DET','ORL','HOU')

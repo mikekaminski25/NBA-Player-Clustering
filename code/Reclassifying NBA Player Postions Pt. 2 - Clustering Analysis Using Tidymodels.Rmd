@@ -1,8 +1,12 @@
 ---
-title: "Reclassifying NBA Player Postions Pt. 2 - Clustering Analysis Using Tidymodels"
+title: "NBA Player Segmentation Pt. 2 - Clustering Analysis Using Tidymodels"
 author: "Mike Kaminski"
 date: "2023-06-08"
-output: html_document
+output: 
+  html_document: 
+    theme: cerulean
+    toc: yes
+    toc_float: yes
 ---
 
 ```{r setup, include=FALSE}
@@ -13,7 +17,7 @@ knitr::opts_chunk$set(echo = TRUE, cache = TRUE, warning = FALSE,
 knitr::opts_knit$set(root.dir = "C:/Users/mikek/Documents/NBA-Player-Clustering")
 ```
 
-# Intro
+# Introduction
 I've scraped data from https://www.basketball-reference.com/ for 4 stat categories for all seasons from 2001 - 2022 <br>
 - Advanced <br>
 - Per Game <br>
@@ -22,7 +26,7 @@ I've scraped data from https://www.basketball-reference.com/ for 4 stat categori
 
 I removed players who averaged less than 12 minutes per game during any given season.  I may potentially remove players who played less than 20 mins per game.
 
-# Libraries and Loading Data
+# Libraries and Data
 ```{r}
 library(tidymodels) # broom, dials, parsnip, tune, workflows, yardstick
 library(tidyverse) #ggplot2, dplyr, tidyr, readr, purr, tibble, stringr, lubridate
@@ -40,34 +44,36 @@ model_df <-  NBACleanData %>%
   mutate(across(where(is.numeric), ~as.numeric(scale(.))))
 ```
 
-# K-Means
+# Modeling
+
+## K-Means
 ```{r kmeans1}
 nba_clust <- kmeans(model_df %>% select(-c(1:4,80)), centers = 3) # removes und needed variables
 ```
 
-#### Tidy the nba_clust data
+### Tidy the data
 ```{r tidy}
 tidy(nba_clust)[, 1:8] # centers of the clusters
 ```
 
-#### Augment and plot the nba_clust data
+### Augment and plot the data
 ```{r augment1}
 #augment shows all the data and includes the cluster number
 head(augment(nba_clust, model_df)[, c(81,1:9)],5) 
 ```
-
+#### Plot
 ```{r augment2}
 augment(nba_clust, model_df) %>%
   ggplot(aes(FG_pp, FGA_pp, color = .cluster)) + # the aes values can be changed if needed
   geom_point()
 ```
 
-#### Glance the nba_clust data
+### Glance the data
 ```{r glance}
 #glance gives us other useful metrics from the model
 glance(nba_clust)
 ```
-## Elbow Plot: Finding the optimal number of k
+### Elbow Plot: find the optimal k
 ```{r fig.width = 10, fig.height=3}
 kclusts <- 
   tibble(k = 1:15) %>%
@@ -118,10 +124,10 @@ An argument could be made for 6 or 7 when looking at the difference in tot.withi
 
 The data is fairly high dimensional, so maybe reducing the dimensionality will yield more interpretable results.
 
-# K-Means with PCA
+## K-Means w/ PCA
 Reducing the dimensionality using PCA.
 
-#### Create a recipe using all the data
+### Recipe
 ```{r }
 #create a recipe
 nba_rec <- recipe(~ ., data = model_df) %>%
@@ -133,7 +139,7 @@ nba_rec <- recipe(~ ., data = model_df) %>%
 nba_prep <- prep(nba_rec)
 ```
 
-#### PCs - Tidied and Plotted
+### PCs - Tidied and Plotted
 ```{r fig.width = 15, fig.height=6}
 #shows just a few PCs
 tidied_pca <- tidy(nba_prep, 2) # 2 refers to the step number. This provides the step_pca
@@ -156,7 +162,7 @@ tidied_pca %>%
 
 ```
 
-## How much variance is being captured?
+### How much variance is being captured?
 ```{r fig.width= 14, fig.height = 3}
 
 sdev <- nba_prep$steps[[2]]$res$sdev 
@@ -182,7 +188,7 @@ tibble(component = unique(tidied_pca$component),
 
 Capturing 80% of the variance might be a good place to start
 
-## Recipe that captures 80% variance
+### Recipe that captures 80% variance
 ```{r}
 nba_rec_80 <- recipe(~ ., data = model_df) %>%
   update_role(Year, Player, Pos, Tm, new_role = "id") %>%
@@ -208,13 +214,13 @@ set.seed(525)
 kclust <- kmeans(pca_80 %>% select(-c(1:4)), centers = 3)
 ```
 
-#### Tidy the kclust data
+### Tidy the data
 ```{r }
 #The tidy function gives us the centers from each variable (PCs)
 tidy(kclust)
 ```
 
-#### Augment and plot the kclust data
+### Augment and plot the data
 ```{r }
 #augment shows all the data and includes the cluster number
 head(augment(kclust, pca_80),5) 
@@ -226,13 +232,13 @@ augment(kclust, pca_80) %>%
   geom_point()
 ```
 
-#### Glance the kclust data
+### Glance the data
 ```{r }
 #glance gives us other useful metrics from the model
 glance(kclust)
 ```
 
-## Elbow Plot: Finding the optimal number of k
+### Elbow Plot: find the optimal k
 ```{r fig.width = 10, fig.height=3}
 kclusts <- 
   tibble(k = 1:15) %>%
@@ -283,7 +289,7 @@ An argument could be made for 7 or 8 when looking at the difference in tot.withi
 
 Filtering down the data to include less players might make things a bit easier to interpret
 
-## Try kmeans with PCA using less data
+## K-Means w/ PCA - using less data pt. 1
 From the initial cleaning, players with mpg of less than 12 minutes per game were removed.  Removing players with less than 20 mins per game could make things more clear.
 
 ```{r}
@@ -301,7 +307,7 @@ tidied_pca_mpg20 <- tidy(nba_prep_mpg20, 2)
 
 ```
 
-## How much variance is being captured?
+### How much variance is being captured?
 ```{r, fig.width= 14, fig.height = 3}
 sdev <- nba_prep_mpg20$steps[[2]]$res$sdev
 
@@ -332,10 +338,10 @@ tibble(component = unique(tidied_pca_mpg20$component),
 
 I was hoping for a bit more of a change in the number of variables that accounted for 80% of the variance, but that doesn't appear to be the case
 
-## Try PCA with less data part 2
+## K-Means w/ PCA - using less data pt. 2
 There were 4 stat categories - Per Game, Per 100 possessions, Shooting, and Advanced.  Maybe running PCA on those will provide clearer results
 
-#### Advanced
+### Advanced
 ```{r}
 model_df_adv <-  NBACleanData %>%
   select(Year, Player, Pos, Tm,contains("_adv"))
@@ -369,7 +375,7 @@ tibble(component = unique(tidied_pca_adv$component),
 ```
 3 PCs account for 70%, 4 PCs 80%, 6 PCs 90%
 
-#### Per 100 possessions
+### Per 100 possessions
 ```{r}
 model_df_pp <-  NBACleanData %>%
   select(Year, Player, Pos, Tm,contains("_pp"))
@@ -403,7 +409,7 @@ tibble(component = unique(tidied_pca_pp$component),
 ```
 4 PCs account for 70%, 5 PCs 80%,9 PCs 90%
 
-#### Shooting
+### Shooting
 ```{r}
 model_df_sho <-  NBACleanData %>%
   select(Year, Player, Pos, Tm,contains("_sho"))
@@ -437,7 +443,7 @@ tibble(component = unique(tidied_pca_psho$component),
 ```
 5 PCs account for 70%, 7 PCs 80%,9 PCs 90%
 
-#### Per Game
+### Per Game
 ```{r}
 model_df_pg <-  NBACleanData %>%
   select(Year, Player, Pos, Tm,contains("_pg"))
@@ -473,7 +479,7 @@ tibble(component = unique(tidied_pca_pg$component),
 
 Per game stats account for the most variance with the least amount of data.  We'll take a look at kmeans for only per game statistics
 
-### Try K-Means with PCA using less data part 3 - only per game statistics
+## K-Means w/ PCA - using less data pt. 3 -only per game stats
 ```{r}
 # the template stores the PCA variables
 pca_pg <- nba_prep_pg$template %>%
@@ -489,6 +495,7 @@ kclust <- kmeans(pca_pg %>% select(-c(1:4)), centers = 3, nstart = 1000, iter.ma
 
 ```
 
+### Elbow plot: find the optimal k
 ```{r}
 kclusts <- 
   tibble(k = 1:15) %>%
@@ -534,11 +541,10 @@ kclusts %>%
   )
 ```
 
-# Hierarchical
+## Hierarchical
 
 I'll use PCA for hierarchical clustering as well to reduce the dimensionality of the data
 
-## Hierarchical
 This plot is the same as the initial plot using all the data, just as a reminder
 ```{r fig.height = 6, fig.width = 16}
 # recipe
@@ -571,7 +577,7 @@ tibble(component = unique(tidied_pca_hier$component),
   scale_y_continuous(labels = scales::percent_format(), limits = c(0,.35))
 ```
 
-## Try the different hierarhcical clustering methods
+### Hierarchical Clustering Methods
 ```{r}
 
 # recipe - using 9 PCs instead of 20
@@ -607,7 +613,7 @@ nba_hclust_ward <- hclust(d, method = "ward.D2")
 
 ```
 
-#### Dendrogram of each
+### Dendrogram of each
 ```{r message=FALSE}
 library(factoextra)
 
@@ -617,8 +623,9 @@ fviz_dend(nba_hclust_ward, main = "Ward")
 
 ```
 
-The below looks at the agglomerative coefficent, which measures clustering structure of the dataset.  A value closer to 1 means more balanced.
+The below looks at the agglomerative coefficient, which measures clustering structure of the dataset.  A value closer to 1 means more balanced.
 
+### Agglomerative Coefficients
 ```{r message=FALSE}
 library(cluster)
 
@@ -633,6 +640,8 @@ ac_metric
 Ward's is the closest to 1, so that's the method that we'll use that from
 
 Look at how the sample looks from a clustering standpoint
+
+### Dendrograms for k = 6, 7, and 8
 ```{r}
 fviz_dend(nba_hclust_ward, k = 6)
 fviz_dend(nba_hclust_ward, k = 7)

@@ -1,0 +1,11 @@
+name: Publish Document
+title:
+username:
+account: rpubs
+server: rpubs.com
+hostUrl: rpubs.com
+appId: https://api.rpubs.com/api/v1/document/1058043/c770f0e0a02345a1bd7fec378ec24493
+bundleId: https://api.rpubs.com/api/v1/document/1058043/c770f0e0a02345a1bd7fec378ec24493
+url: http://rpubs.com/mikek25/1058043
+when: 1687880291.44581
+lastSyncTime: 1687880291.44582

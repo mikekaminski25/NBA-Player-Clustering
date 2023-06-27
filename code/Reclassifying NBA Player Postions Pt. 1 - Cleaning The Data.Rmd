@@ -1,8 +1,12 @@
 ---
-title: "Reclassifying NBA Player Postions Pt. 1 - Cleaning The Data"
+title: "NBA Player Segmentation Pt. 1 - Cleaning The Data"
 author: "Mike Kaminski"
 date: "2023-06-12"
-output: html_document
+output: 
+  html_document: 
+    theme: cerulean
+    toc: yes
+    toc_float: yes
 ---
 
 
@@ -422,6 +426,6 @@ model_df <- model_df %>%
   rename_with(~ str_replace(., "%", "_pct"), contains("%"))
   # select(sort(colnames(.)))
 
-write.csv(model_df,"C:/Users/mikek/Documents/NBA-Player-Clustering/Data/model0623.csv")
+# write.csv(model_df,"C:/Users/mikek/Documents/NBA-Player-Clustering/Data/model0623.csv")
          
 ```
